@@ -1,0 +1,32 @@
+Initial socket setup:
+Firstly, we initialize the configuration struct by reading the file given as command line argument, 
+which contains the address and port information.
+
+Then, the server socket is set up calling bind(), listen() with pre-read address and port as arguments, 
+and starts listening to connections by accept().
+
+The IP address uses IPv4 Internet protocols the socket type is SOCK_STREAM, 
+which provides sequenced, reliable, two-way, connection-based byte streams.
+
+Method to dealt with multiple connections:
+Main thread runs in an infinite loop, which keeps accepting clients from 
+the waiting queue (of size 4 which is sufficient in this case). 
+
+New thread is created per connection, after which the request will be handed over to connection_handler(), 
+where the client message is read the server respond according (via message header) 
+by calling different working functions (echo and error only here for the milestone).
+
+These functions will implement the actual work and write the response message to the client. 
+Both read and sent message is a struct matching the structure of the message client and server agrees on. 
+
+Logical flow (sketch):
+incoming client request
+ |
+main -> new thread -> connection_handler()
+ ^		                    /     \
+ |	 	                 echo  error
+ |		                    \     /
+ |	                 write message to client 
+ |		                       |
+ <-----------Finish------------|
+					
