@@ -28,9 +28,9 @@ void compression_reader(configuration_t *config);
 void* connection_handler(void* arg);
 void* thread_handler();
 int message_header_reader(void* arg);
-void echo(void *arg);
-void dir_list(void *arg);
-void file_size_query(void *arg);
+int echo(void *arg);
+int dir_list(void *arg);
+int file_size_query(void *arg);
 void error(void *arg);
 void server_shutdown(void *arg);
 
@@ -149,6 +149,10 @@ void compression_reader(configuration_t *config) {
             }
         }
 
+        puts("----");
+        show(code, run_len);
+        puts("----");
+
         //Add to the compression dictionary
         //The key is assumed to be incremental starting from 0
         compress_dict_add(cd, code, run_len);
@@ -193,6 +197,7 @@ void* connection_handler(void* arg) {
 
         // If the client refuses to connect, we disconnect it
         if (message_header_reader(d) == 0) {
+            // printf("\n");
             error(d);
             break;
         }
@@ -204,13 +209,19 @@ void* connection_handler(void* arg) {
 
         switch (type) {
             case 0x00:
-                echo(d);
+                if (!echo(d)){
+                    stop = true;
+                };
                 break;
             case 0x02:
-                dir_list(d);
+                if (!dir_list(d)) {
+                    stop = true;
+                };
                 break;
             case 0x04:
-                file_size_query(d);
+                if (!file_size_query(d)) {
+                    stop = true;
+                };
                 break;
             case 0x08:
                 server_shutdown(d);
@@ -239,7 +250,7 @@ int message_header_reader(void* arg) {
     }
 }
 
-void echo(void *arg) {
+int echo(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
 
@@ -257,10 +268,18 @@ void echo(void *arg) {
     };
 
     free(res);
+
+    return 1;
 }
 
-void dir_list(void *arg) {
+int dir_list(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
+
+    if (d->msg.p_length != 0) {
+        error(d);
+        return 0;
+    }
+
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
 
     struct stat sb;
@@ -276,33 +295,51 @@ void dir_list(void *arg) {
             }
         }
         closedir(dir);
+    } else {
+        error(d);
+        free(res);
+        return 0;
     }
 
     res->msg.header = 0x30;
     res->msg.p_length = bswap_64(length);
     write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
+    bool found = false;
     if ((dir=opendir(d->path)) != NULL) {
         while ((file = readdir(dir)) != NULL) {
             stat(file->d_name, &sb);
             if (S_ISREG(sb.st_mode)) {
+                found = true;
                 write(d->socketfd, file->d_name, strlen(file->d_name));
                 write(d->socketfd, "0x00", 1);
             }
         }
         closedir(dir);
+    } else {
+        error(d);
+        free(res);
+        return 0;
+    }
+
+    if (!found) {
+        write(d->socketfd, "0x00", 1);
     }
 
     free(res);
+    return 1;
 }
 
-void file_size_query(void *arg) {
+int file_size_query(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
 
     uint64_t read_len = bswap_64(d->msg.p_length);
-    char *filename = (char*)malloc(read_len+1); //1 more for NULL byte
-    read(d->socketfd, filename, read_len+1);
+    char *filename = (char*)malloc(read_len); //1 more for NULL byte
+    read(d->socketfd, filename, read_len);
+
+    // printf("Read length is:%ld\n", read_len);;
+    puts(filename);
 
     struct stat sb;
     DIR *dir;
@@ -320,11 +357,19 @@ void file_size_query(void *arg) {
             }
         }
         closedir(dir);
+    } else {
+        error(d);
+        free(filename);
+        free(res); 
+        return 0;
     }
 
+    //If the file is not found
     if (!found) {
         error(d);
-        return;
+        free(filename);
+        free(res); 
+        return 0;
     }
 
     uint64_t write_len = 8;
@@ -336,9 +381,10 @@ void file_size_query(void *arg) {
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
     write(d->socketfd, &file_len, write_len);
 
-
     free(filename);
     free(res);  
+
+    return 1;
 
 }
 
@@ -350,7 +396,7 @@ void server_shutdown(void *arg) {
     close(d->socketfd);
     shutdown(d->serversocketfd, SHUT_RDWR);
 
-    exit(1);
+    exit(0);
 }
 
 
