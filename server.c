@@ -22,6 +22,7 @@
 pthread_t thread_pool[THREAD_POOL_SIZE];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER;
+bool __shutdown = false;
 
 void config_reader(configuration_t *config, char* config_file_name);
 void compression_reader(configuration_t *config);
@@ -32,7 +33,7 @@ int echo(void *arg);
 int dir_list(void *arg);
 int file_size_query(void *arg);
 void error(void *arg);
-void server_shutdown(void *arg);
+int server_shutdown(void *arg);
 
 int main(int argc, char** argv) {
 	
@@ -63,7 +64,7 @@ int main(int argc, char** argv) {
 
 	listen(serversocket_fd, LISTENING_SIZE);
 	
-    while(true) {
+    while(!__shutdown) {
 		uint32_t addrlen = sizeof(struct sockaddr_in);
 		clientsocket_fd = accept(serversocket_fd, (struct sockaddr*) &config->address, &addrlen);
 		
@@ -202,7 +203,6 @@ void* connection_handler(void* arg) {
             break;
         }
 
-
         uint8_t type = (d->msg.header >> 4 & 0xf) | 0x00;
 
         // printf("Type is : %d\n", type);
@@ -224,7 +224,9 @@ void* connection_handler(void* arg) {
                 };
                 break;
             case 0x08:
-                server_shutdown(d);
+                if (server_shutdown(d)) {
+                    stop = true;
+                };
                 break;
             default:
                 error(d);
@@ -286,11 +288,13 @@ int dir_list(void *arg) {
     DIR *dir;
     struct dirent *file;
 
+    bool found = false;
     uint64_t length = 0;
     if ((dir=opendir(d->path)) != NULL) {
         while ((file = readdir(dir)) != NULL) {
             stat(file->d_name, &sb);
             if (S_ISREG(sb.st_mode)) {
+                found = true;
                 length += strlen(file->d_name) + 1;
             }
         }
@@ -301,29 +305,30 @@ int dir_list(void *arg) {
         return 0;
     }
 
+    if (!found) {
+        length = 1;
+        res->msg.header = 0x30;
+        res->msg.p_length = bswap_64(length);
+        write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
+        write(d->socketfd, "\0", 1);
+
+        free(res);
+        return 1;
+    }
+
     res->msg.header = 0x30;
     res->msg.p_length = bswap_64(length);
     write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
-    bool found = false;
     if ((dir=opendir(d->path)) != NULL) {
         while ((file = readdir(dir)) != NULL) {
             stat(file->d_name, &sb);
             if (S_ISREG(sb.st_mode)) {
-                found = true;
                 write(d->socketfd, file->d_name, strlen(file->d_name));
-                write(d->socketfd, "0x00", 1);
+                write(d->socketfd, "\0", 1);
             }
         }
         closedir(dir);
-    } else {
-        error(d);
-        free(res);
-        return 0;
-    }
-
-    if (!found) {
-        write(d->socketfd, "0x00", 1);
     }
 
     free(res);
@@ -388,15 +393,18 @@ int file_size_query(void *arg) {
 
 }
 
-void server_shutdown(void *arg) {
+int server_shutdown(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     free(d->path);
     compress_dict_free(d->config->cd);
     binary_tree_destroy(d->config->root);
     close(d->socketfd);
+
     shutdown(d->serversocketfd, SHUT_RDWR);
 
-    exit(0);
+    __shutdown = true;
+
+    return 1;
 }
 
 
