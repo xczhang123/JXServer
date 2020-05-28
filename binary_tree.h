@@ -9,7 +9,7 @@
 #include <byteswap.h>
 #include <arpa/inet.h>
 
-typedef struct {
+typedef struct binary_tree_node {
     uint8_t key;
     struct binary_tree_node *l;
     struct binary_tree_node *r;

@@ -34,3 +34,4 @@ clean:
 	rm -f *.o
 	rm -f server
 	rm -f test
+	rm -f client
