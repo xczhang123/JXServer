@@ -318,12 +318,12 @@ int echo(void *arg) {
             res->msg.p_length = bswap_64(num_of_bytes);
             write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
-            uint64_t padding = 8-(num_of_bit%8);
+            uint8_t padding = 8-(num_of_bit%8);
             for (int i = 0; i < padding; i++) {
                 clear_bit(compressed_msg, num_of_bit++);
             }
             write(d->socketfd, compressed_msg, num_of_bytes);
-            padding = bswap_64(padding);
+            // padding = bswap_64(padding);
             write(d->socketfd, &padding, 1);
 
             free(compressed_msg);
