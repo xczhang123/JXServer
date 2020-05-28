@@ -313,6 +313,7 @@ int echo(void *arg) {
                     }
                 }
             }
+            num_of_bytes +=1; //For the padding byte
             res->msg.header = 0x10;
             set_bit(&res->msg.header, 4);
             res->msg.p_length = bswap_64(num_of_bytes);
