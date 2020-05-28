@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     binary_tree_destroy(config->root);
     free(config);
     
-    return 0;
+    exit(0);
 }
 
 void config_reader(configuration_t *config, char* config_file_name) {
