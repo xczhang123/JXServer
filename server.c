@@ -365,6 +365,8 @@ int file_size_query(void *arg) {
     DIR *dir;
     struct dirent *file;
 
+    puts(filename);
+
     bool found = false;
     uint64_t file_len = 0;
     if ((dir=opendir(d->path)) != NULL) {
@@ -373,6 +375,8 @@ int file_size_query(void *arg) {
             if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
                 found = true;
                 file_len = sb.st_size;
+                puts("LAter");
+                puts(file->d_name);
                 break;
             }
         }
