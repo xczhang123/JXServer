@@ -188,7 +188,7 @@ void* thread_handler() {
             pthread_cond_wait(&condition_var, &mutex); 
             if (__shutdown) {
                 pthread_mutex_unlock(&mutex);
-                puts("Thread exiting...");
+                // puts("Thread exiting...");
                 pthread_exit(NULL);
             }
         }; 
@@ -284,6 +284,7 @@ int echo(void *arg) {
     //     write(d->socketfd, res->msg.payload, nread);
     // };
 
+    free(res->msg.payload);
     free(res);
 
     return 1;
