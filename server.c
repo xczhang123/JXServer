@@ -376,6 +376,7 @@ int file_size_query(void *arg) {
             strcat(file_name_full, "/");
             strcat(file_name_full, file->d_name);
             stat(file_name_full, &sb);
+            free(file_name_full);
             if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
                 found = true;
                 file_len = sb.st_size;
@@ -383,7 +384,6 @@ int file_size_query(void *arg) {
                 // puts(file->d_name);
                 break;
             }
-            free(file_name_full);
         }
         closedir(dir);
     } else {
