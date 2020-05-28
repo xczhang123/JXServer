@@ -309,10 +309,12 @@ int dir_list(void *arg) {
     if ((dir=opendir(d->path)) != NULL) {
         while ((file = readdir(dir)) != NULL) {
             stat(file->d_name, &sb);
-            if (S_ISREG(sb.st_mode)) {
+            if (file->d_type == DT_REG) {
                 found = true;
+
                 length += strlen(file->d_name) + 1;
             }
+            // S_ISREG(sb.st_mode)
             puts(file->d_name);
         }
         closedir(dir);
