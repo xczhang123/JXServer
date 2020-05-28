@@ -361,8 +361,6 @@ int file_size_query(void *arg) {
     char *filename = (char*)malloc(read_len);
     read(d->socketfd, filename, read_len);;
 
-    // puts(filename);
-
     struct stat sb;
     DIR *dir;
     struct dirent *file;
@@ -397,7 +395,12 @@ int file_size_query(void *arg) {
 
     // uint64_t target_filename_length = strlen(d->path)+1+2+strlen(filename);
     uint64_t num_len = 8;
+
+    printf("%ld\n", file_len);
     file_len = bswap_64(file_len);
+
+    // printf("%ld\n", file_len);
+
     // res->msg.payload = malloc(target_filename_length);
     // strcpy((char*)res->msg.payload, d->path);
     // strcat((char*)res->msg.payload, "/");
@@ -412,9 +415,9 @@ int file_size_query(void *arg) {
     res->msg.p_length = bswap_64(num_len);
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
     // write(d->socketfd, res->msg.payload, );
+    // for (int i = 7; i >= 0; i++) {
     write(d->socketfd, &file_len, num_len);
-
-    // free(res->msg.payload);
+   
     free(filename);
     free(res);  
 
