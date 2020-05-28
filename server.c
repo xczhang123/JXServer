@@ -219,6 +219,10 @@ void* connection_handler(void* arg) {
         // printf("Type is : %d\n", type);
 
         switch (type) {
+            case 0x08:
+                server_shutdown(d);
+                stop = true;
+                break;
             case 0x00:
                 if (!echo(d)){
                     stop = true;
@@ -233,10 +237,6 @@ void* connection_handler(void* arg) {
                 if (!file_size_query(d)) {
                     stop = true;
                 };
-                break;
-            case 0x08:
-                server_shutdown(d);
-                stop = true;
                 break;
             default:
                 error(d);
