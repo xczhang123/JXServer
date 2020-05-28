@@ -397,6 +397,7 @@ int file_size_query(void *arg) {
 
     // uint64_t target_filename_length = strlen(d->path)+1+2+strlen(filename);
     uint64_t num_len = 8;
+    file_len = bswap_64(file_len);
     // res->msg.payload = malloc(target_filename_length);
     // strcpy((char*)res->msg.payload, d->path);
     // strcat((char*)res->msg.payload, "/");
@@ -406,7 +407,7 @@ int file_size_query(void *arg) {
 
     // printf("%ld\n", target_filename_length);
     // printf("%ld\n", num_len);
-
+    
     res->msg.header = 0x50;
     res->msg.p_length = bswap_64(num_len);
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
