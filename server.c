@@ -33,7 +33,7 @@ int echo(void *arg);
 int dir_list(void *arg);
 int file_size_query(void *arg);
 void error(void *arg);
-int server_shutdown(void *arg);
+void server_shutdown(void *arg);
 
 int main(int argc, char** argv) {
 	
@@ -68,20 +68,26 @@ int main(int argc, char** argv) {
 		uint32_t addrlen = sizeof(struct sockaddr_in);
 		clientsocket_fd = accept(serversocket_fd, (struct sockaddr*) &config->address, &addrlen);
 		
-		connection_data_t* d = malloc(sizeof(connection_data_t));
-		d->socketfd = clientsocket_fd;
-        d->serversocketfd = serversocket_fd;
-        d->path = config->path;
-        d->config = config;
+        if (clientsocket_fd != -1) {
+            connection_data_t* d = malloc(sizeof(connection_data_t));
+            d->socketfd = clientsocket_fd;
+            d->serversocketfd = serversocket_fd;
+            d->path = config->path;
+            d->config = config;
 
-        pthread_mutex_lock(&mutex);
-        enqueue(d);
-        pthread_cond_signal(&condition_var);
-        pthread_mutex_unlock(&mutex);
+            pthread_mutex_lock(&mutex);
+            enqueue(d);
+            pthread_cond_signal(&condition_var);
+            pthread_mutex_unlock(&mutex);
+        }
 	}
+
+    free(config->path);
+    compress_dict_free(config->cd);
+    binary_tree_destroy(config->root);
+    free(config);
     
     return 0;
-
 }
 
 void config_reader(configuration_t *config, char* config_file_name) {
@@ -180,6 +186,11 @@ void* thread_handler() {
         pthread_mutex_lock(&mutex);
         while ((d = dequeue()) == NULL) {
             pthread_cond_wait(&condition_var, &mutex); 
+            if (__shutdown) {
+                pthread_mutex_unlock(&mutex);
+                // puts("Thread exiting...");
+                pthread_exit(NULL);
+            }
         }; 
         pthread_mutex_unlock(&mutex);
 
@@ -224,9 +235,8 @@ void* connection_handler(void* arg) {
                 };
                 break;
             case 0x08:
-                if (server_shutdown(d)) {
-                    stop = true;
-                };
+                server_shutdown(d);
+                stop = true;
                 break;
             default:
                 error(d);
@@ -393,19 +403,12 @@ int file_size_query(void *arg) {
 
 }
 
-int server_shutdown(void *arg) {
+void server_shutdown(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
-    free(d->path);
-    compress_dict_free(d->config->cd);
-    binary_tree_destroy(d->config->root);
-    free(d->config);
-    close(d->socketfd);
-
-    shutdown(d->serversocketfd, SHUT_RDWR);
-
     __shutdown = true;
-
-    return 1;
+    close(d->socketfd);
+    pthread_cond_broadcast(&condition_var);
+    shutdown(d->serversocketfd, SHUT_RDWR);
 }
 
 
