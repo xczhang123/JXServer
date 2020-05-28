@@ -1,6 +1,6 @@
-#include "queue.h"
 #include <stdlib.h>
 #include <pthread.h>
+#include "queue.h"
 
 node_t* head = NULL;
 node_t* tail = NULL;
@@ -18,7 +18,6 @@ void enqueue(connection_data_t* d) {
 }
 
 connection_data_t* dequeue() {
-    // pthread_mutex_lock(&mutex);
     if (head == NULL) {
         return NULL;
     } else {
@@ -31,5 +30,4 @@ connection_data_t* dequeue() {
         free(temp);
         return d;
     }
-    // pthread_mutex_unlock(&mutex);
 }

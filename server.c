@@ -10,35 +10,38 @@
 #include <byteswap.h>
 #include <endian.h>
 #include <stdbool.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <sys/sysmacros.h>
 #include "queue.h"
 
-#define SERVER_MSG ("Hello User! Welcome to my server!")
 #define THREAD_POOL_SIZE (20)
 #define LISTENING_SIZE (100)
-
-typedef struct {
-    struct sockaddr_in address;
-    char *path;
-} configuration;
 
 pthread_t thread_pool[THREAD_POOL_SIZE];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER;
 
-void config_reader(configuration *config, char* config_file_name);
+void config_reader(configuration_t *config, char* config_file_name);
+void compression_reader(configuration_t *config);
 void* connection_handler(void* arg);
 void* thread_handler();
-int message_reader(void* arg);
+int message_header_reader(void* arg);
 void echo(void *arg);
+void dir_list(void *arg);
+void file_size_query(void *arg);
 void error(void *arg);
+void server_shutdown(void *arg);
 
 int main(int argc, char** argv) {
 	
 	int serversocket_fd = -1;
 	int clientsocket_fd = -1;
 
-    configuration *config = malloc(sizeof(configuration));
+    configuration_t *config = malloc(sizeof(configuration_t));
     config_reader(config, argv[1]);
+    compression_reader(config);
 
     for (int i = 0; i < THREAD_POOL_SIZE; i++) {
         pthread_create(thread_pool+i, NULL, thread_handler, NULL);
@@ -59,37 +62,28 @@ int main(int argc, char** argv) {
 	}
 
 	listen(serversocket_fd, LISTENING_SIZE);
-    // puts("HEYYY!");
-	while(true) {
+	
+    while(true) {
 		uint32_t addrlen = sizeof(struct sockaddr_in);
 		clientsocket_fd = accept(serversocket_fd, (struct sockaddr*) &config->address, &addrlen);
 		
 		connection_data_t* d = malloc(sizeof(connection_data_t));
 		d->socketfd = clientsocket_fd;
+        d->serversocketfd = serversocket_fd;
         d->path = config->path;
+        d->config = config;
 
-        // printf("serversocket_fd %d\n", serversocket_fd);
-        // printf("clientsocket_fd %d\n", clientsocket_fd);
         pthread_mutex_lock(&mutex);
         enqueue(d);
         pthread_cond_signal(&condition_var);
         pthread_mutex_unlock(&mutex);
-        // puts("HEYYY!");
-
-		// pthread_t thread;
-		// pthread_create(&thread, NULL, &connection_handler, d);
 	}
-    
-    // pthread_join(thread, NULL);
-    free(config->path);
-    free(config);
-	close(serversocket_fd);
     
     return 0;
 
 }
 
-void config_reader(configuration *config, char* config_file_name) {
+void config_reader(configuration_t *config, char* config_file_name) {
     FILE *fp;
     if ((fp = fopen(config_file_name, "rb")) == NULL) {
         perror("error");
@@ -119,14 +113,68 @@ void config_reader(configuration *config, char* config_file_name) {
     fclose(fp);
 }
 
+void compression_reader(configuration_t *config) {
+    FILE *f = fopen("compression.dict", "rb");
+    fseek(f, 0, SEEK_END);
+    long file_len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    uint8_t *arr = (uint8_t*)malloc(file_len);
+    fread(arr, 1, file_len, f);
+    fclose(f);
+
+    compress_dict_t *cd = compress_dict_init();
+    binary_tree_node *root = new_empty();
+
+    int count = 0;
+    int i = 0;
+    while (i < file_len*8){
+        uint8_t run_len = 0;
+
+        // Read code length
+        for (int j = 0; j < 8 && i < file_len*8; j++){
+            if (get_bit(arr, i++) == 1){
+                set_bit(&run_len, j);
+            }
+        }
+        // We must have read the padding at the end
+        if (run_len == 0) {
+            break;
+        }
+
+        // Read code
+        uint8_t code[4] = {0};
+        for (int j = 0; j < run_len; j++){
+            if (get_bit(arr, i++) == 1){
+                set_bit(code, j);
+            }
+        }
+
+        //Add to the compression dictionary
+        //The key is assumed to be incremental starting from 0
+        compress_dict_add(cd, code, run_len);
+
+        insert(root, count, code, run_len);
+
+        // show(cd->arr[cd->cur_pos-1]->code, run_len);
+
+        count++;
+
+        // binary_tree_node *n = search(root, code, run_len);
+        // show(n->code, n->len);
+        // break;
+    }
+
+    config->cd = cd;
+    config->root = root;
+    arr_destroy(arr);
+}
+
 void* thread_handler() {
     while (true) {
         connection_data_t* d;
         pthread_mutex_lock(&mutex);
-        if ((d = dequeue()) == NULL) {
+        while ((d = dequeue()) == NULL) {
             pthread_cond_wait(&condition_var, &mutex); 
-            //try again
-            d = dequeue(); 
         }; 
         pthread_mutex_unlock(&mutex);
 
@@ -140,28 +188,38 @@ void* thread_handler() {
 
 void* connection_handler(void* arg) {
 	connection_data_t* d = (connection_data_t*) arg;
-    while(true) {
+    bool stop = false;
+    while(!stop) {
 
-        if (message_reader(d) == 0) {
-            // sleep(1);
-            error(d);
-            break;
-        }
-
-        // printf("header received %hhx\n", (d->msg.header));
-        // printf("header received %hhx\n", (d->msg.header>>4));
-
-        if (((d->msg.header >> 4) & 0xf) == 0x0) {
-            // sleep(1);
-            echo(d);
-        } else {
-            // sleep(1);
+        // If the client refuses to connect, we disconnect it
+        if (message_header_reader(d) == 0) {
             error(d);
             break;
         }
 
 
-        free(d->msg.payload);
+        uint8_t type = (d->msg.header >> 4 & 0xf) | 0x00;
+
+        // printf("Type is : %d\n", type);
+
+        switch (type) {
+            case 0x00:
+                echo(d);
+                break;
+            case 0x02:
+                dir_list(d);
+                break;
+            case 0x04:
+                file_size_query(d);
+                break;
+            case 0x08:
+                server_shutdown(d);
+                break;
+            default:
+                error(d);
+                stop = true;
+                break;
+        }
     }
 
     free(d);
@@ -170,47 +228,15 @@ void* connection_handler(void* arg) {
 }
 
 /* return 1 for success, otherwise 0 */
-int message_reader(void* arg) {
+int message_header_reader(void* arg) {
     connection_data_t* d = (connection_data_t*) arg;
     ssize_t nread = read(d->socketfd, &d->msg, sizeof(d->msg.header)+sizeof(d->msg.p_length));
 
     if (nread == 0) {
         return 0;
+    } else {
+        return 1;
     }
-    // for (int i = 0; i < 8; i++) {
-    //     printf("The length is: %hhx\n", *((char*)(&(d->msg.p_length))+i));
-    // }
-    // puts("");
-
-    // printf("The converted length is %zu\n", be64toh(d->msg.p_length));
-    
-    uint64_t length = be64toh(d->msg.p_length);
-    // Max possible allocable size
-    if (length > 0x10000000000) {
-        return 0;
-    }
-
-    uint8_t *payload = (uint8_t*)malloc(length*sizeof(uint8_t));
-    d->msg.payload = payload;
-    read(d->socketfd, d->msg.payload, length*sizeof(uint8_t));
-
-    // for (int i = 0; i < 1; i++) {
-    //     printf("The header is: %hhx\n", (*((char*)(&(d->msg.header)))));
-    // }
-    // puts("");
-
-    // for (int i = 0; i < 8; i++) {
-    //     printf("The length is: %hhx\n", *((char*)(&(d->msg.p_length))+i));
-    // }
-    // puts("");
-
-    // for (int i = 0; i < length; i++) {
-    //     printf("The payload is: %hhx\n", *((char*)(d->msg.payload)+i));
-    // }
-    // puts("");
-
-    return 1;
-
 }
 
 void echo(void *arg) {
@@ -220,21 +246,113 @@ void echo(void *arg) {
     // bool p_compressed = ((d->msg.header & 0x08) >> 3) == 0x1; //if payload received is compressed
     // bool r_compressed = ((d->msg.header & 0x04) >> 2) == 0x1; //if payload sent needs to be compressed
 
-    res->socketfd = d->socketfd;
     //***** NOT FULLY IMPLEMENTED YET
 	res->msg.header = 0x10;
     res->msg.p_length = d->msg.p_length;
 
-    long length = be64toh(res->msg.p_length)*sizeof(uint8_t);
-    res->msg.payload = (uint8_t*)malloc(length*sizeof(uint8_t));
-    memcpy(res->msg.payload, d->msg.payload, length); 
+    write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+    ssize_t nread;
+    while ((nread=read(d->socketfd, res->msg.payload, PAYLOAD_CHUNK)) != 0) {
+        write(d->socketfd, res->msg.payload, nread);
+    };
 
-    write(d->socketfd, &res->msg, sizeof(d->msg.header)+sizeof(d->msg.p_length));
-    write(d->socketfd, res->msg.payload, length);
-
-    free(res->msg.payload);
     free(res);
 }
+
+void dir_list(void *arg) {
+    connection_data_t* d = (connection_data_t*) arg;
+    connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
+
+    struct stat sb;
+    DIR *dir;
+    struct dirent *file;
+
+    uint64_t length = 0;
+    if ((dir=opendir(d->path)) != NULL) {
+        while ((file = readdir(dir)) != NULL) {
+            stat(file->d_name, &sb);
+            if (S_ISREG(sb.st_mode)) {
+                length += strlen(file->d_name) + 1;
+            }
+        }
+        closedir(dir);
+    }
+
+    res->msg.header = 0x30;
+    res->msg.p_length = bswap_64(length);
+    write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
+    if ((dir=opendir(d->path)) != NULL) {
+        while ((file = readdir(dir)) != NULL) {
+            stat(file->d_name, &sb);
+            if (S_ISREG(sb.st_mode)) {
+                write(d->socketfd, file->d_name, strlen(file->d_name));
+                write(d->socketfd, "0x00", 1);
+            }
+        }
+        closedir(dir);
+    }
+
+    free(res);
+}
+
+void file_size_query(void *arg) {
+    connection_data_t* d = (connection_data_t*) arg;
+    connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
+
+    uint64_t read_len = bswap_64(d->msg.p_length);
+    char *filename = (char*)malloc(read_len+1); //1 more for NULL byte
+    read(d->socketfd, filename, read_len+1);
+
+    struct stat sb;
+    DIR *dir;
+    struct dirent *file;
+
+    bool found = false;
+    uint64_t file_len = 0;
+    if ((dir=opendir(d->path)) != NULL) {
+        while ((file = readdir(dir)) != NULL) {
+            stat(file->d_name, &sb);
+            if (S_ISREG(sb.st_mode) && strcmp(file->d_name, filename) == 0) {
+                found = true;
+                file_len = sb.st_size;
+                break;
+            }
+        }
+        closedir(dir);
+    }
+
+    if (!found) {
+        error(d);
+        return;
+    }
+
+    uint64_t write_len = 8;
+    // printf("The file_len is %lu\n", file_len);
+    file_len = bswap_64(file_len);
+    // printf("The file_len is %lu\n", file_len);
+    res->msg.header = 0x50;
+    res->msg.p_length = bswap_64(write_len);
+    write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+    write(d->socketfd, &file_len, write_len);
+
+
+    free(filename);
+    free(res);  
+
+}
+
+void server_shutdown(void *arg) {
+    connection_data_t* d = (connection_data_t*) arg;
+    free(d->path);
+    compress_dict_free(d->config->cd);
+    binary_tree_destroy(d->config->root);
+    close(d->socketfd);
+    shutdown(d->serversocketfd, SHUT_RDWR);
+
+    exit(1);
+}
+
 
 void error(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
@@ -243,15 +361,12 @@ void error(void *arg) {
     res->socketfd = d->socketfd;
     res->msg.header = 0xf0;
     res->msg.p_length = 0;
-    res->msg.payload = NULL;
 
-    write(d->socketfd, &res->msg,  sizeof(d->msg.header)+sizeof(d->msg.p_length));
+    write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
     //Close the connection
     close(res->socketfd);
 
     free(res);
 
-    // free(d->msg.payload);
-    // free(d);
 }

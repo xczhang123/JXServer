@@ -1,16 +1,7 @@
-(sample)compression.dict
-(sample)compression.dict:Zone.Identifier
-Assignment 3 - May 18.pdf
-Assignment 3 - May 18.pdf:Zone.Identifier
 client-scaffold.c
-client-scaffold.c:Zone.Identifier
 config_file
 generate-config
 generate-config.c
-generate-config.c:Zone.Identifier
 test.c
-server
-server.o
-Makefile
-client
 test.bash
+sample-compression-dictionary-readable.txt
