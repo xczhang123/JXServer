@@ -320,7 +320,7 @@ int echo(void *arg) {
 
             uint8_t padding = 8-(num_of_bit%8);
             for (int i = 0; i < padding; i++) {
-                clear_bit(compressed_msg, num_of_bit);
+                clear_bit(compressed_msg, num_of_bit++);
             }
             write(d->socketfd, compressed_msg, num_of_bytes);
             padding = bswap_64(padding);
