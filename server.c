@@ -313,7 +313,7 @@ int echo(void *arg) {
                     }
                 }
             }
-            num_of_bytes +=1; //For the padding byte
+            num_of_bytes += 1; //For the padding byte
             res->msg.header = 0x10;
             set_bit(&res->msg.header, 4);
             res->msg.p_length = bswap_64(num_of_bytes);
@@ -326,7 +326,7 @@ int echo(void *arg) {
             for (int i = 0; i < padding; i++) {
                 clear_bit(compressed_msg, num_of_bit++);
             }
-            write(d->socketfd, compressed_msg, num_of_bytes);
+            write(d->socketfd, compressed_msg, num_of_bytes-1);
             // padding = bswap_64(padding);
             write(d->socketfd, &padding, 1);
 
