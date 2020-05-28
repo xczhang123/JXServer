@@ -341,7 +341,7 @@ int dir_list(void *arg) {
     if ((dir=opendir(d->path)) != NULL) {
         while ((file = readdir(dir)) != NULL) {
             stat(file->d_name, &sb);
-            if (S_ISREG(sb.st_mode)) {
+            if (file->d_type == DT_REG) {
                 write(d->socketfd, file->d_name, strlen(file->d_name));
                 write(d->socketfd, "\0", 1);
             }
