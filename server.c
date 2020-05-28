@@ -311,11 +311,10 @@ int dir_list(void *arg) {
             stat(file->d_name, &sb);
             if (file->d_type == DT_REG) {
                 found = true;
-
                 length += strlen(file->d_name) + 1;
             }
             // S_ISREG(sb.st_mode)
-            puts(file->d_name);
+            // puts(file->d_name);
         }
         closedir(dir);
     } else {
