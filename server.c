@@ -302,7 +302,7 @@ int echo(void *arg) {
                 memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
                 for (int j = 0; j < run_len; j++) {
 
-                    if (num_of_bit % 8 == 0) {
+                    if (num_of_bit == num_of_bytes * 8) {
                         compressed_msg = realloc(compressed_msg, ++num_of_bytes);
                     }
                     
