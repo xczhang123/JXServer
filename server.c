@@ -311,6 +311,7 @@ int dir_list(void *arg) {
             stat(file->d_name, &sb);
             if (S_ISREG(sb.st_mode)) {
                 found = true;
+                puts(file->d_name);
                 length += strlen(file->d_name) + 1;
             }
         }
@@ -387,6 +388,7 @@ int file_size_query(void *arg) {
         }
         closedir(dir);
     } else {
+        // puts("EXIT 1");
         error(d);
         free(filename);
         free(res); 
@@ -395,6 +397,7 @@ int file_size_query(void *arg) {
 
     //If the file is not found
     if (!found) {
+        // puts("EXIT 2");
         error(d);
         free(filename);
         free(res); 
@@ -438,7 +441,7 @@ void error(void *arg) {
     write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
     //Close the connection
-    // close(res->socketfd);
+    close(res->socketfd);
 
     free(res);
 }
