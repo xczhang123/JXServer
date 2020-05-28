@@ -361,16 +361,7 @@ int file_size_query(void *arg) {
     char *filename = (char*)malloc(read_len);
     read(d->socketfd, filename, read_len);;
 
-
-    // for (int i = 0 ; i <17; i++) {
-    //     printf("%x",filename[i]);
-    // }
-    // puts("");
-
-    puts(filename);
-
-    // printf("Read length is:%ld\n", read_len);;
-
+    // puts(filename);
 
     struct stat sb;
     DIR *dir;
@@ -381,7 +372,7 @@ int file_size_query(void *arg) {
     if ((dir=opendir(d->path)) != NULL) {
         while ((file = readdir(dir)) != NULL) {
             stat(file->d_name, &sb);
-            if (S_ISREG(sb.st_mode) && strcmp(file->d_name, filename) == 0) {
+            if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
                 found = true;
                 file_len = sb.st_size;
                 break;
@@ -389,7 +380,6 @@ int file_size_query(void *arg) {
         }
         closedir(dir);
     } else {
-        // puts("EXIT 1");
         error(d);
         free(filename);
         free(res); 
@@ -398,23 +388,32 @@ int file_size_query(void *arg) {
 
     //If the file is not found
     if (!found) {
-        // puts("EXIT 2");
         error(d);
         free(filename);
         free(res); 
         return 0;
     }
 
-    uint64_t write_len = 8;
-    // printf("The file_len is %lu\n", file_len);
-    file_len = bswap_64(file_len);
-    // printf("The file_len is %lu\n", file_len);
+
+    uint64_t target_filename_length = strlen(d->path)+1+2+strlen(filename);
+    uint64_t num_len = 8;
+    res->msg.payload = malloc(target_filename_length);
+    strcpy((char*)res->msg.payload, d->path);
+    strcat((char*)res->msg.payload, "/");
+    strcat((char*)res->msg.payload, filename);
+    // target_filename_length = bswap_64(target_filename_length);
+    // num_len = bswap_64(num_len);
+
+    // printf("%ld\n", target_filename_length);
+    // printf("%ld\n", num_len);
+
     res->msg.header = 0x50;
-    res->msg.p_length = bswap_64(write_len);
+    res->msg.p_length = bswap_64(target_filename_length+num_len);
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+    write(d->socketfd, res->msg.payload, target_filename_length);
+    write(d->socketfd, &file_len, num_len);
 
-    write(d->socketfd, &file_len, write_len);
-
+    free(res->msg.payload);
     free(filename);
     free(res);  
 
