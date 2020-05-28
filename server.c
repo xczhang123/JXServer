@@ -156,10 +156,6 @@ void compression_reader(configuration_t *config) {
             }
         }
 
-        // puts("----");
-        // show(code, run_len);
-        // puts("----");
-
         //Add to the compression dictionary
         //The key is assumed to be incremental starting from 0
         compress_dict_add(cd, code, run_len);
@@ -242,6 +238,9 @@ void* connection_handler(void* arg) {
                 stop = true;
                 break;
         }
+
+        //dummy reader to clear the buffer
+        // message_header_reader(d);
     }
 
     free(d);
@@ -254,7 +253,8 @@ int message_header_reader(void* arg) {
     connection_data_t* d = (connection_data_t*) arg;
     ssize_t nread = read(d->socketfd, &d->msg, sizeof(d->msg.header)+sizeof(d->msg.p_length));
 
-    if (nread < 0) {
+    // printf("nread %ld\n", nread);
+    if (nread <= 0) {
         return 0;
     } else {
         return 1;
@@ -298,7 +298,7 @@ int echo(void *arg) {
             for (int i = 0; i < length; i++) {
                 uint8_t key = res->msg.payload[i];
                 uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
-                uint8_t code[4];
+                uint8_t code[4] = {0};
                 memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
                 for (int j = 0; j < run_len; j++) {
 
@@ -313,6 +313,11 @@ int echo(void *arg) {
                     }
                 }
             }
+            res->msg.header = 0x10;
+            set_bit(&res->msg.header, 4);
+            res->msg.p_length = bswap_64(num_of_bytes);
+            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
             uint8_t padding = 8-(num_of_bit%8);
             for (int i = 0; i < padding; i++) {
                 clear_bit(compressed_msg, num_of_bit);
@@ -338,16 +343,16 @@ int echo(void *arg) {
         }
     }
 
-
     free(res->msg.payload);
     free(res);
+
+    // puts("SDSD");
 
     return 1;
 }
 
 int dir_list(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
-
     if (d->msg.p_length != 0) {
         error(d);
         return 0;
@@ -368,8 +373,6 @@ int dir_list(void *arg) {
                 found = true;
                 length += strlen(file->d_name) + 1;
             }
-            // S_ISREG(sb.st_mode)
-            // puts(file->d_name);
         }
         closedir(dir);
     } else {
