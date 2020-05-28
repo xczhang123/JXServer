@@ -318,7 +318,7 @@ int echo(void *arg) {
             res->msg.p_length = bswap_64(num_of_bytes);
             write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
-            uint8_t padding = 8-(num_of_bit%8);
+            uint8_t padding = (8-num_of_bit%8) % 8;
             printf("num of bits%ld\n", num_of_bit);
             printf("padding: %d\n", padding);
             for (int i = 0; i < padding; i++) {
