@@ -319,7 +319,7 @@ int echo(void *arg) {
             write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
             uint8_t padding = 8-(num_of_bit%8);
-            printf("num of bits\n", num_of_bit);
+            printf("num of bits%ld\n", num_of_bit);
             printf("padding: %d\n", padding);
             for (int i = 0; i < padding; i++) {
                 clear_bit(compressed_msg, num_of_bit++);
