@@ -255,7 +255,7 @@ int message_header_reader(void* arg) {
     connection_data_t* d = (connection_data_t*) arg;
     ssize_t nread = read(d->socketfd, &d->msg, sizeof(d->msg.header)+sizeof(d->msg.p_length));
 
-    if (nread == 0) {
+    if (nread < 0) {
         return 0;
     } else {
         return 1;
