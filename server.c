@@ -398,6 +398,7 @@ int server_shutdown(void *arg) {
     free(d->path);
     compress_dict_free(d->config->cd);
     binary_tree_destroy(d->config->root);
+    free(d->config);
     close(d->socketfd);
 
     shutdown(d->serversocketfd, SHUT_RDWR);
