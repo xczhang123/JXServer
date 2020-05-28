@@ -209,7 +209,6 @@ void* connection_handler(void* arg) {
 
         // If the client refuses to connect, we disconnect it
         if (message_header_reader(d) == 0) {
-            // printf("\n");
             error(d);
             break;
         }
@@ -219,10 +218,6 @@ void* connection_handler(void* arg) {
         // printf("Type is : %d\n", type);
 
         switch (type) {
-            case 0x08:
-                server_shutdown(d);
-                stop = true;
-                break;
             case 0x00:
                 if (!echo(d)){
                     stop = true;
@@ -237,6 +232,10 @@ void* connection_handler(void* arg) {
                 if (!file_size_query(d)) {
                     stop = true;
                 };
+                break;
+            case 0x08:
+                server_shutdown(d);
+                stop = true;
                 break;
             default:
                 error(d);
@@ -272,12 +271,18 @@ int echo(void *arg) {
     //***** NOT FULLY IMPLEMENTED YET
 	res->msg.header = 0x10;
     res->msg.p_length = d->msg.p_length;
+    uint64_t length = bswap_64(res->msg.p_length);
 
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-    ssize_t nread;
-    while ((nread=read(d->socketfd, res->msg.payload, PAYLOAD_CHUNK)) != 0) {
-        write(d->socketfd, res->msg.payload, nread);
-    };
+    // printf("length: %lu\n", length);
+    
+    res->msg.payload = malloc(length);
+    read(d->socketfd, res->msg.payload, length);
+    write(d->socketfd, res->msg.payload, length);
+    // ssize_t nread;
+    // while ((nread=read(d->socketfd, res->msg.payload, PAYLOAD_CHUNK)) >= 0) {
+    //     write(d->socketfd, res->msg.payload, nread);
+    // };
 
     free(res);
 

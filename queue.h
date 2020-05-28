@@ -18,7 +18,7 @@ typedef struct {
 typedef struct {
     uint8_t header;
     uint64_t p_length;
-    uint8_t payload [PAYLOAD_CHUNK];
+    uint8_t *payload;
 } message_t;
 
 typedef struct {
