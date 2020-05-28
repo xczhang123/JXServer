@@ -356,11 +356,19 @@ int file_size_query(void *arg) {
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
 
     uint64_t read_len = bswap_64(d->msg.p_length);
-    char *filename = (char*)malloc(read_len); //1 more for NULL byte
-    read(d->socketfd, filename, read_len);
+    char *filename = (char*)malloc(read_len);
+    read(d->socketfd, filename, read_len);;
+
+
+    // for (int i = 0 ; i <17; i++) {
+    //     printf("%x",filename[i]);
+    // }
+    // puts("");
+
+    puts(filename);
 
     // printf("Read length is:%ld\n", read_len);;
-    puts(filename);
+
 
     struct stat sb;
     DIR *dir;
@@ -400,6 +408,7 @@ int file_size_query(void *arg) {
     res->msg.header = 0x50;
     res->msg.p_length = bswap_64(write_len);
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
     write(d->socketfd, &file_len, write_len);
 
     free(filename);
@@ -429,8 +438,7 @@ void error(void *arg) {
     write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
     //Close the connection
-    close(res->socketfd);
+    // close(res->socketfd);
 
     free(res);
-
 }
