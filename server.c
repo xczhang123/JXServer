@@ -311,9 +311,9 @@ int dir_list(void *arg) {
             stat(file->d_name, &sb);
             if (S_ISREG(sb.st_mode)) {
                 found = true;
-                puts(file->d_name);
                 length += strlen(file->d_name) + 1;
             }
+            puts(file->d_name);
         }
         closedir(dir);
     } else {
