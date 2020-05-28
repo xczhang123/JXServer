@@ -149,9 +149,9 @@ void compression_reader(configuration_t *config) {
             }
         }
 
-        puts("----");
-        show(code, run_len);
-        puts("----");
+        // puts("----");
+        // show(code, run_len);
+        // puts("----");
 
         //Add to the compression dictionary
         //The key is assumed to be incremental starting from 0
