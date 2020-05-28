@@ -234,10 +234,10 @@ void* connection_handler(void* arg) {
                     stop = true;
                 };
                 break;
-            case 0x08:
-                server_shutdown(d);
-                stop = true;
-                break;
+            // case 0x08:
+            //     server_shutdown(d);
+            //     stop = true;
+            //     break;
             default:
                 error(d);
                 stop = true;
