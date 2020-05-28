@@ -265,24 +265,79 @@ int echo(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
 
-    // bool p_compressed = ((d->msg.header & 0x08) >> 3) == 0x1; //if payload received is compressed
-    // bool r_compressed = ((d->msg.header & 0x04) >> 2) == 0x1; //if payload sent needs to be compressed
+    bool compression_bit = get_bit(&d->msg.header, 4) == 0x1; //if payload received is compressed
+    bool require_compression = get_bit(&d->msg.header, 5) == 0x1; //if payload sent needs to be compressed
 
-    //***** NOT FULLY IMPLEMENTED YET
-	res->msg.header = 0x10;
-    res->msg.p_length = d->msg.p_length;
-    uint64_t length = bswap_64(res->msg.p_length);
+    // printf("%d\n", compression_bit);
+    // printf("%d\n", require_compression);
 
-    write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-    // printf("length: %lu\n", length);
-    
-    res->msg.payload = malloc(length);
-    read(d->socketfd, res->msg.payload, length);
-    write(d->socketfd, res->msg.payload, length);
-    // ssize_t nread;
-    // while ((nread=read(d->socketfd, res->msg.payload, PAYLOAD_CHUNK)) >= 0) {
-    //     write(d->socketfd, res->msg.payload, nread);
-    // };
+    if (!require_compression) {
+        res->msg.header = 0x10;
+        if (compression_bit) {
+            set_bit(&res->msg.header, 4);
+        }
+
+        res->msg.p_length = d->msg.p_length;
+        uint64_t length = bswap_64(res->msg.p_length);
+
+        write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+        
+        res->msg.payload = malloc(length);
+        read(d->socketfd, res->msg.payload, length);
+        write(d->socketfd, res->msg.payload, length);
+    } else { //if the payload sent needs to be compressed
+        if (!compression_bit) {
+            //need compression
+            uint64_t length = bswap_64(d->msg.p_length);
+            res->msg.payload = malloc(length);
+            read(d->socketfd, res->msg.payload, length);
+            uint64_t num_of_bit = 0;
+            uint64_t num_of_bytes = 1;
+            uint8_t *compressed_msg = malloc(1);
+
+            for (int i = 0; i < length; i++) {
+                uint8_t key = res->msg.payload[i];
+                uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
+                uint8_t code[4];
+                memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
+                for (int j = 0; j < run_len; j++) {
+
+                    if (num_of_bit % 8 == 0) {
+                        compressed_msg = realloc(compressed_msg, ++num_of_bytes);
+                    }
+                    
+                    if (get_bit(code, j) == 1) {
+                        set_bit(compressed_msg, num_of_bit++);
+                    } else {
+                        clear_bit(compressed_msg, num_of_bit++);
+                    }
+                }
+            }
+            uint8_t padding = 8-(num_of_bit%8);
+            for (int i = 0; i < padding; i++) {
+                clear_bit(compressed_msg, num_of_bit);
+            }
+            write(d->socketfd, compressed_msg, num_of_bytes);
+            padding = bswap_64(padding);
+            write(d->socketfd, &padding, 1);
+
+            free(compressed_msg);
+            
+        } else { //If it receives compression already
+            //directly send back
+            res->msg.header = 0x10;
+            set_bit(&res->msg.header, 4);
+            res->msg.p_length = d->msg.p_length;
+            uint64_t length = bswap_64(res->msg.p_length);
+
+            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+            
+            res->msg.payload = malloc(length);
+            read(d->socketfd, res->msg.payload, length);
+            write(d->socketfd, res->msg.payload, length);
+        }
+    }
+
 
     free(res->msg.payload);
     free(res);
