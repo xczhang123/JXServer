@@ -365,20 +365,25 @@ int file_size_query(void *arg) {
     DIR *dir;
     struct dirent *file;
 
-    puts(filename);
+    // puts(filename);
 
     bool found = false;
     uint64_t file_len = 0;
     if ((dir=opendir(d->path)) != NULL) {
         while ((file = readdir(dir)) != NULL) {
-            stat(file->d_name, &sb);
+            char *file_name_full = malloc(strlen(d->path)+3+strlen(file->d_name));
+            strcpy(file_name_full, d->path);
+            strcat(file_name_full, "/");
+            strcat(file_name_full, file->d_name);
+            stat(file_name_full, &sb);
             if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
                 found = true;
                 file_len = sb.st_size;
-                puts("LAter");
-                puts(file->d_name);
+                // puts("LAter");
+                // puts(file->d_name);
                 break;
             }
+            free(file_name_full);
         }
         closedir(dir);
     } else {
@@ -400,7 +405,7 @@ int file_size_query(void *arg) {
     // uint64_t target_filename_length = strlen(d->path)+1+2+strlen(filename);
     uint64_t num_len = 8;
 
-    printf("%ld\n", file_len);
+    // printf("%ld\n", file_len);
     file_len = bswap_64(file_len);
 
     // printf("%ld\n", file_len);
