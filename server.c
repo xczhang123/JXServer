@@ -86,7 +86,6 @@ int main(int argc, char** argv) {
     compress_dict_free(config->cd);
     binary_tree_destroy(config->root);
     free(config);
-    
     exit(0);
 }
 
@@ -205,7 +204,7 @@ void* connection_handler(void* arg) {
 
         // If the client refuses to connect, we disconnect it
         if (message_header_reader(d) == 0) {
-            error(d);
+            // error(d);
             break;
         }
 
@@ -218,6 +217,7 @@ void* connection_handler(void* arg) {
                 if (!echo(d)){
                     stop = true;
                 };
+                // echo(d);
                 break;
             case 0x02:
                 if (!dir_list(d)) {
@@ -318,7 +318,7 @@ int echo(void *arg) {
             res->msg.p_length = bswap_64(num_of_bytes);
             write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
-            uint8_t padding = 8-(num_of_bit%8);
+            uint64_t padding = 8-(num_of_bit%8);
             for (int i = 0; i < padding; i++) {
                 clear_bit(compressed_msg, num_of_bit++);
             }
@@ -346,7 +346,7 @@ int echo(void *arg) {
     free(res->msg.payload);
     free(res);
 
-    // puts("SDSD");
+    puts("SDSD");
 
     return 1;
 }
