@@ -699,11 +699,11 @@ int retrieve_file(connection_data_t *arg) {
             uint8_t *file_content = malloc(len);
             fread(file_content, 1, len, fd);
 
-            // printf("%ld\n", len+20);
-            // printf("%ld\n", bswap_64(len+20));
+            printf("%ld\n", len+20);
+            printf("%ld\n", bswap_64(len+20));
 
             res->msg.header = 0x70;
-            res->msg.p_length = bswap_64(len);
+            res->msg.p_length = bswap_64(1);
             write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
             write(d->socketfd, &session, 4);
@@ -712,8 +712,7 @@ int retrieve_file(connection_data_t *arg) {
             len = bswap_64(len);
             write(d->socketfd, &len, 8);
             write(d->socketfd, file_content, len);
-            // write(d->socketfd, compressed_msg, num_of_bytes-1);
-            // write(d->socketfd, &padding, 1);
+
 
             // uint64_t num_of_bit = 0;
             // uint64_t num_of_bytes = 1;
