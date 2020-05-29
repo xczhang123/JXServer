@@ -45,6 +45,7 @@ void insert(binary_tree_node *root, uint8_t key, uint8_t *code, uint8_t len) {
                     cursor->l->key = key;
                     copy_bit_32(cursor->l->code, code, len);
                     cursor->l->len = len;
+                    cursor->l->defined = true;
                 } else {
                     cursor = cursor->l;
                 }
@@ -62,6 +63,7 @@ void insert(binary_tree_node *root, uint8_t key, uint8_t *code, uint8_t len) {
                     cursor->r->key = key;
                     copy_bit_32(cursor->r->code, code, len);
                     cursor->r->len = len;
+                    cursor->r->defined = true;
                 } else {
                     cursor = cursor->r;
                 }
@@ -94,15 +96,6 @@ binary_tree_node* search(binary_tree_node *root, uint8_t *code, uint8_t len) {
     }
     // printf("What is cursor: %p\n", cursor);
     return cursor;
-}
-
-/* direction can either be 0 or 1*/
-void pointer_search(binary_tree_node *root, uint8_t direction, binary_tree_node **save) {
-    // if (direction == 0) {
-    //     *save = search(root, 0, 1); //advance left
-    // } else {
-    //     *save = search(root, 1, 1); //advance right
-    // }
 }
 
 

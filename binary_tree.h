@@ -26,8 +26,6 @@ void insert(binary_tree_node *root, uint8_t v, uint8_t* code, uint8_t len);
 
 binary_tree_node* search(binary_tree_node *root, uint8_t* code, uint8_t len);
 
-void pointer_search(binary_tree_node *root, uint8_t direction, binary_tree_node **save);
-
 void post_traversal(binary_tree_node * n);
 
 void pre_traversal(binary_tree_node * n);
