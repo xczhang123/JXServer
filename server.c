@@ -15,6 +15,7 @@
 #include <time.h>
 #include <sys/sysmacros.h>
 #include "queue.h"
+#include "session.h"
 
 #define THREAD_POOL_SIZE (20)
 #define LISTENING_SIZE (100)
@@ -32,6 +33,7 @@ int message_header_reader(void* arg);
 int echo(void *arg);
 int dir_list(void *arg);
 int file_size_query(void *arg);
+int retrieve_file(connection_data_t *arg);
 void error(void *arg);
 void server_shutdown(void *arg);
 void compression_char(connection_data_t *d, uint8_t** compressed_msg, 
@@ -236,6 +238,11 @@ void* connection_handler(void* arg) {
                     stop = true;
                 };
                 break;
+            case 0x06:
+                if (!retrieve_file(d)) {
+                    stop = true;
+                }
+                break;
             case 0x08:
                 server_shutdown(d);
                 stop = true;
@@ -246,8 +253,6 @@ void* connection_handler(void* arg) {
                 break;
         }
 
-        //dummy reader to clear the buffer
-        // message_header_reader(d);
     }
 
     free(d);
@@ -581,6 +586,73 @@ int file_size_query(void *arg) {
 
     return 1;
 
+}
+
+int retrieve_file(connection_data_t *arg) {
+    connection_data_t* d = (connection_data_t*) arg;
+    connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
+
+    bool compression_bit = get_bit(&d->msg.header, 4) == 0x1; //if payload received is compressed
+    bool require_compression = get_bit(&d->msg.header, 5) == 0x1; //if payload sent needs to be compressed
+
+    if (require_compression) {
+        if (compression_bit) {
+
+        } else {
+
+        }
+    } else {
+        if (compression_bit) {
+            //Decode the 
+            uint64_t read_len = bswap_64(d->msg.p_length)-1;
+            char *decompressed_msg = malloc(1);
+            uint64_t cur_pos = 0;
+
+            res->msg.payload = malloc(read_len);
+            read(d->socketfd, res->msg.payload, read_len);
+            uint8_t padding;
+            read(d->socketfd, &padding, 1);
+
+            decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding, &cur_pos);
+
+            uint32_t session;
+            memcpy(&session, decompressed_msg, 4);
+
+            uint64_t start;
+            memcpy(&start, decompressed_msg+4, 8);
+
+            uint64_t len;
+            memcpy(&len, decompressed_msg+12, 8);
+
+            char *filename = strdup(decompressed_msg+20);
+
+            printf("size is %ld\n", cur_pos);
+
+            (void)filename;
+
+
+
+
+
+
+
+            free(res->msg.payload);
+        } else {
+
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+    return 1;
 }
 
 void server_shutdown(void *arg) {
