@@ -650,8 +650,8 @@ int retrieve_file(connection_data_t *arg) {
                         file_len = sb.st_size;
                         break;
                     }
-                    closedir(dir);
                 }
+                closedir(dir);
             } else {
                 error(d);
                 free(filename);
