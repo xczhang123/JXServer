@@ -757,7 +757,7 @@ int retrieve_file(connection_data_t *arg) {
             len = bswap_64(len);
 
             char *filename = malloc(bswap_64(d->msg.p_length));
-            read(d->socketfd, filename, d->msg.p_length-20);
+            read(d->socketfd, filename, bswap_64(d->msg.p_length)-20);
 
             struct stat sb;
             DIR *dir;
