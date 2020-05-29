@@ -715,6 +715,8 @@ int retrieve_file(connection_data_t *arg) {
 
             puts("AM I here?");
 
+            write(d->socketfd, file_content, len);
+
 
             // uint64_t num_of_bit = 0;
             // uint64_t num_of_bytes = 1;
