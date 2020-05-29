@@ -578,10 +578,10 @@ int file_size_query(void *arg) {
             uint8_t key = *((uint8_t*)(&file_len) + i);
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
         }
-        uint64_t send_len = 8;
+        
         uint8_t header = 0x50;
         set_bit(&header, 4);
-        send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &send_len);
+        send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
 
         free(filename);
         free(res); 
