@@ -391,14 +391,18 @@ int dir_list(void *arg) {
 
         //If the directory is empty
         if (is_empty) {
-            uint8_t key = '\0';
-            compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
-            send_compression_msg(d, res, &compressed_msg, 0x30, &num_of_bit, &num_of_bytes);
+            compression_char(d, &compressed_msg, '\0', &num_of_bytes, &num_of_bit);
+            uint8_t header = 0x30;
+            set_bit(&header, 4);
+            send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
             return 1;
+        } else { //If the directory is not empty
+            uint8_t header = 0x30;
+            set_bit(&header, 4);
+            send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
         }
-        uint8_t header = 0x30;
-        set_bit(&header, 4);
-        send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
+
+        free(res);
 
     } else { // do not need compression
         struct stat sb;
