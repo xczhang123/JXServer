@@ -677,12 +677,13 @@ int retrieve_file(connection_data_t *arg) {
             char *path = malloc(strlen(d->path)+3+strlen(filename));
             strcpy(path, d->path);
             strcat(path, "/");
-            strcat(path, file->d_name);
+            strcat(path, filename);
 
             //Read target file
             FILE *fd;
             if ((fd = fopen(path, "r")) == NULL) {
                 error(d);
+                free(path);
                 free(filename);
                 free(res);
                 return 0;
