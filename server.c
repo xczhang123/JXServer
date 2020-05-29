@@ -274,7 +274,7 @@ void compression_char(connection_data_t *d, uint8_t** compressed_msg, uint8_t ke
                 
         // Realloc one mor byte
         if (*num_of_bit == *num_of_bytes * 8) {
-            *compressed_msg = realloc(compressed_msg, ++(*num_of_bytes));
+            *compressed_msg = realloc(*compressed_msg, ++(*num_of_bytes));
         }
         
         if (get_bit(code, j) == 1) {
