@@ -647,7 +647,7 @@ int retrieve_file(connection_data_t *arg) {
                 }
                 closedir(dir);
             } else {
-                puts("dir not found failed");
+                // puts("dir not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -656,7 +656,7 @@ int retrieve_file(connection_data_t *arg) {
 
             //If the file is not found
             if (!found) {
-                puts("file not found failed");
+                // puts("file not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -664,7 +664,7 @@ int retrieve_file(connection_data_t *arg) {
             }
 
             if (start + len > file_len) {
-                puts("file_len failed");
+                // puts("file_len failed");
                 error(d);
                 free(filename);
                 free(res);
@@ -679,7 +679,7 @@ int retrieve_file(connection_data_t *arg) {
             //Read target file
             FILE *fd;
             if ((fd = fopen(path, "r")) == NULL) {
-                puts("fopen failed");
+                // puts("fopen failed");
                 error(d);
                 free(path);
                 free(filename);
@@ -781,7 +781,7 @@ int retrieve_file(connection_data_t *arg) {
                 }
                 closedir(dir);
             } else {
-                puts("dir not found failed");
+                // puts("dir not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -790,7 +790,7 @@ int retrieve_file(connection_data_t *arg) {
 
             //If the file is not found
             if (!found) {
-                puts("file not found failed");
+                // puts("file not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -798,7 +798,7 @@ int retrieve_file(connection_data_t *arg) {
             }
 
             if (start + len > file_len) {
-                puts("file_len failed");
+                // puts("file_len failed");
                 error(d);
                 free(filename);
                 free(res);
@@ -813,7 +813,7 @@ int retrieve_file(connection_data_t *arg) {
             //Read target file
             FILE *fd;
             if ((fd = fopen(path, "r")) == NULL) {
-                puts("fopen failed");
+                // puts("fopen failed");
                 error(d);
                 free(path);
                 free(filename);
@@ -922,7 +922,7 @@ int retrieve_file(connection_data_t *arg) {
                 }
                 closedir(dir);
             } else {
-                puts("dir not found failed");
+                // puts("dir not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -931,7 +931,7 @@ int retrieve_file(connection_data_t *arg) {
 
             //If the file is not found
             if (!found) {
-                puts("file not found failed");
+                // puts("file not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -939,7 +939,7 @@ int retrieve_file(connection_data_t *arg) {
             }
 
             if (start + len > file_len) {
-                puts("file_len failed");
+                // puts("file_len failed");
                 error(d);
                 free(filename);
                 free(res);
@@ -954,7 +954,7 @@ int retrieve_file(connection_data_t *arg) {
             //Read target file
             FILE *fd;
             if ((fd = fopen(path, "r")) == NULL) {
-                puts("fopen failed");
+                // puts("fopen failed");
                 error(d);
                 free(path);
                 free(filename);
@@ -1021,7 +1021,7 @@ int retrieve_file(connection_data_t *arg) {
                 }
                 closedir(dir);
             } else {
-                puts("dir not found failed");
+                // puts("dir not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -1030,7 +1030,7 @@ int retrieve_file(connection_data_t *arg) {
 
             //If the file is not found
             if (!found) {
-                puts("file not found failed");
+                // puts("file not found failed");
                 error(d);
                 free(filename);
                 free(res); 
@@ -1038,7 +1038,7 @@ int retrieve_file(connection_data_t *arg) {
             }
 
             if (start + len > file_len) {
-                puts("file_len failed");
+                // puts("file_len failed");
                 error(d);
                 free(filename);
                 free(res);
@@ -1053,7 +1053,7 @@ int retrieve_file(connection_data_t *arg) {
             //Read target file
             FILE *fd;
             if ((fd = fopen(path, "r")) == NULL) {
-                puts("fopen failed");
+                // puts("fopen failed");
                 error(d);
                 free(path);
                 free(filename);
