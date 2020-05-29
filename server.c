@@ -703,7 +703,7 @@ int retrieve_file(connection_data_t *arg) {
             printf("%ld\n", bswap_64(len+20));
 
             res->msg.header = 0x70;
-            res->msg.p_length = bswap_64(1);
+            res->msg.p_length = bswap_64(len);
             write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
             write(d->socketfd, &session, 4);
