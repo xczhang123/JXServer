@@ -623,11 +623,11 @@ int retrieve_file(connection_data_t *arg) {
 
             uint64_t start;
             memcpy(&start, decompressed_msg+4, 8);
-            session = bswap_64(start);
+            start = bswap_64(start);
 
             uint64_t len;
             memcpy(&len, decompressed_msg+12, 8);
-            session = bswap_64(len);
+            len = bswap_64(len);
 
             char *filename = strdup(decompressed_msg+20);
 
