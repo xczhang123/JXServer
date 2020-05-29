@@ -822,7 +822,6 @@ int retrieve_file(connection_data_t *arg) {
             }
 
             fseek(fd, start, SEEK_SET);
-
             uint8_t *file_content = malloc(len);
             fread(file_content, 1, len, fd);
 
@@ -874,7 +873,7 @@ int retrieve_file(connection_data_t *arg) {
             free(file_content);
             free(path);
             free(res->msg.payload);
-            free(compressed_msg);
+            // free(compressed_msg);
             // free(decompressed_msg);
             free(res);
         }
