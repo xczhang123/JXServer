@@ -867,9 +867,7 @@ int retrieve_file(connection_data_t *arg) {
             free(filename);
             free(file_content);
             free(path);
-            // free(res->msg.payload);
             free(compressed_msg);
-            // free(decompressed_msg);
             free(res);
         }
     } else {
@@ -987,7 +985,96 @@ int retrieve_file(connection_data_t *arg) {
             free(decompressed_msg);
             free(res);
         } else {
+            uint32_t session;
+            read(d->socketfd, &session, sizeof(uint32_t));
 
+            uint64_t start;
+            read(d->socketfd, &start, sizeof(uint64_t));
+            start = bswap_64(start);
+
+            uint64_t len;
+            read(d->socketfd, &len, sizeof(uint64_t));
+            len = bswap_64(len);
+
+            char *filename = malloc(bswap_64(d->msg.p_length));
+            read(d->socketfd, filename, bswap_64(d->msg.p_length)-20);
+
+            struct stat sb;
+            DIR *dir;
+            struct dirent *file;
+
+            bool found = false;
+            uint64_t file_len = 0;
+            if ((dir=opendir(d->path)) != NULL) {
+                while ((file = readdir(dir)) != NULL) {
+                    char *file_name_full = malloc(strlen(d->path)+3+strlen(file->d_name));
+                    strcpy(file_name_full, d->path);
+                    strcat(file_name_full, "/");
+                    strcat(file_name_full, file->d_name);
+                    stat(file_name_full, &sb);
+                    free(file_name_full);
+                    if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
+                        found = true;
+                        file_len = sb.st_size;
+                        break;
+                    }
+                }
+                closedir(dir);
+            } else {
+                puts("dir not found failed");
+                error(d);
+                free(filename);
+                free(res); 
+                return 0;
+            }
+
+            //If the file is not found
+            if (!found) {
+                puts("file not found failed");
+                error(d);
+                free(filename);
+                free(res); 
+                return 0;
+            }
+
+            if (start + len > file_len) {
+                puts("file_len failed");
+                error(d);
+                free(filename);
+                free(res);
+                return 0;
+            }
+
+            char *path = malloc(strlen(d->path)+3+strlen(filename));
+            strcpy(path, d->path);
+            strcat(path, "/");
+            strcat(path, filename);
+
+            //Read target file
+            FILE *fd;
+            if ((fd = fopen(path, "r")) == NULL) {
+                puts("fopen failed");
+                error(d);
+                free(path);
+                free(filename);
+                free(res);
+                return 0;
+            }
+
+            fseek(fd, start, SEEK_SET);
+            uint8_t *file_content = malloc(len);
+            fread(file_content, 1, len, fd);
+
+            res->msg.header = 0x70;
+            res->msg.p_length = bswap_64(len+20);
+            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
+            write(d->socketfd, &session, 4);
+            start = bswap_64(start);
+            write(d->socketfd, &start, 8);
+            long len_temp = bswap_64(len);
+            write(d->socketfd, &len_temp, 8);
+            write(d->socketfd, file_content, len);
         }
     }
 
