@@ -619,6 +619,8 @@ int retrieve_file(connection_data_t *arg) {
 
             uint32_t session;
             memcpy(&session, decompressed_msg, 4);
+
+            printf("session: %d\n", session);
             // session = bswap_32(session);
 
             uint64_t start;
@@ -697,35 +699,44 @@ int retrieve_file(connection_data_t *arg) {
             uint8_t *file_content = malloc(len);
             fread(file_content, 1, len, fd);
 
-            uint64_t num_of_bit = 0;
-            uint64_t num_of_bytes = 1;
-            uint8_t *compressed_msg = malloc(1);
-
-            for (int i = 0; i < len; i++) {
-                compression_char(d, &compressed_msg, file_content[i], &num_of_bytes, &num_of_bit);
-            }
-
-            num_of_bytes += 1;
-            res->msg.header = 0x70;
-            set_bit(&res->msg.header, 4);
-            res->msg.p_length = bswap_64(num_of_bytes);
-            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-
-            padding = (8-(num_of_bit)%8) % 8;
-            
-            for (int i = 0; i < padding; i++) {
-                clear_bit(compressed_msg, num_of_bit++);
-            }
-
             write(d->socketfd, &session, 4);
             start = bswap_64(start);
             write(d->socketfd, &start, 8);
             len = bswap_64(len);
             write(d->socketfd, &len, 8);
-            write(d->socketfd, compressed_msg, num_of_bytes-1);
-            write(d->socketfd, &padding, 1);
+            write(d->socketfd, file_content, len);
+            // write(d->socketfd, compressed_msg, num_of_bytes-1);
+            // write(d->socketfd, &padding, 1);
 
-            free(compressed_msg);
+            // uint64_t num_of_bit = 0;
+            // uint64_t num_of_bytes = 1;
+            // uint8_t *compressed_msg = malloc(1);
+
+            // for (int i = 0; i < len; i++) {
+            //     compression_char(d, &compressed_msg, file_content[i], &num_of_bytes, &num_of_bit);
+            // }
+
+            // num_of_bytes += 1;
+            // res->msg.header = 0x70;
+            // set_bit(&res->msg.header, 4);
+            // res->msg.p_length = bswap_64(num_of_bytes+20);
+            // write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
+            // padding = (8-(num_of_bit)%8) % 8;
+            
+            // for (int i = 0; i < padding; i++) {
+            //     clear_bit(compressed_msg, num_of_bit++);
+            // }
+
+            // write(d->socketfd, &session, 4);
+            // start = bswap_64(start);
+            // write(d->socketfd, &start, 8);
+            // len = bswap_64(len);
+            // write(d->socketfd, &len, 8);
+            // write(d->socketfd, compressed_msg, num_of_bytes-1);
+            // write(d->socketfd, &padding, 1);
+
+            // free(compressed_msg);
             
 
 
