@@ -368,54 +368,18 @@ int dir_list(void *arg) {
         uint64_t num_of_bytes = 1;
         uint8_t *compressed_msg = malloc(1);
 
-        bool is_empty = false;
+        bool is_empty = true;
         if ((dir=opendir(d->path)) != NULL) {
             while ((file = readdir(dir)) != NULL) {
                 stat(file->d_name, &sb);
                 if (file->d_type == DT_REG) {
 
                     for (int i = 0; i < strlen(file->d_name); i++) {
-                        uint8_t key = '\0';
-                        uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
-                        uint8_t code[4] = {0};
-                        memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
-
-                         for (int j = 0; j < run_len; j++) {
-    
-                            // Realloc one mor byte
-                            if (num_of_bit == num_of_bytes * 8) {
-                                compressed_msg = realloc(compressed_msg, ++num_of_bytes);
-                            }
-                            
-                            if (get_bit(code, j) == 1) {
-                                set_bit(compressed_msg, num_of_bit++);
-                            } else {
-                                clear_bit(compressed_msg, num_of_bit++);
-                            }
-                        }
+                        uint8_t key = file->d_name[i];
+                        compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
                     }
-                    uint8_t key = '\0';
-                    uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
-                    uint8_t code[4] = {0};
-                    memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
-
-                    for (int j = 0; j < run_len; j++) {
-                
-                        // Realloc one mor byte
-                        if (num_of_bit == num_of_bytes * 8) {
-                            compressed_msg = realloc(compressed_msg, ++num_of_bytes);
-                        }
-                        
-                        if (get_bit(code, j) == 1) {
-                            set_bit(compressed_msg, num_of_bit++);
-                        } else {
-                            clear_bit(compressed_msg, num_of_bit++);
-                        }
-                    }
-
-
-
-                    is_empty = true;
+                    compression_char(d, &compressed_msg, '\0', &num_of_bytes, &num_of_bit);
+                    is_empty = false;
                 }
             }
             closedir(dir);
@@ -428,42 +392,13 @@ int dir_list(void *arg) {
         //If the directory is empty
         if (is_empty) {
             uint8_t key = '\0';
-            uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
-            uint8_t code[4] = {0};
-            memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
-
-            for (int j = 0; j < run_len; j++) {
-        
-                // Realloc one mor byte
-                if (num_of_bit == num_of_bytes * 8) {
-                    compressed_msg = realloc(compressed_msg, ++num_of_bytes);
-                }
-                
-                if (get_bit(code, j) == 1) {
-                    set_bit(compressed_msg, num_of_bit++);
-                } else {
-                    clear_bit(compressed_msg, num_of_bit++);
-                }
-            }
-
-            num_of_bytes += 1; //For the padding byte at the end
-            res->msg.header = 0x30;
-            set_bit(&res->msg.header, 4);
-            res->msg.p_length = bswap_64(num_of_bytes);
-            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-
-            uint8_t padding = (8-num_of_bit%8) % 8;
-        
-            for (int i = 0; i < padding; i++) {
-                clear_bit(compressed_msg, num_of_bit++);
-            }
-            write(d->socketfd, compressed_msg, num_of_bytes-1);
-            write(d->socketfd, &padding, 1);
-
-            free(compressed_msg);
-            free(res);
+            compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
+            send_compression_msg(d, res, &compressed_msg, 0x30, &num_of_bit, &num_of_bytes);
             return 1;
         }
+        uint8_t header = 0x30;
+        set_bit(&header, 4);
+        send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
 
     } else { // do not need compression
         struct stat sb;
