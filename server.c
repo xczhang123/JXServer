@@ -530,8 +530,8 @@ int file_size_query(void *arg) {
             read(d->socketfd, filename, read_len);
         }
 
-        puts("decoded filename: ");
-        puts(filename);
+        // puts("decoded filename: ");
+        // puts(filename);
 
         struct stat sb;
         DIR *dir;
