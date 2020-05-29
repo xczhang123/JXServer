@@ -302,7 +302,7 @@ void send_compression_msg(connection_data_t *d, connection_data_t *res, uint8_t 
     // padding = bswap_64(padding);
     write(d->socketfd, &padding, 1);
 
-    free(compressed_msg);
+    free(*compressed_msg);
 }
 
 int echo(void *arg) {
