@@ -730,23 +730,7 @@ int retrieve_file(connection_data_t *arg) {
             compression_char(d, &compressed_msg, file_content[i], &num_of_bytes, &num_of_bit);
         }
 
-        num_of_bytes += 1;
-        res->msg.header = 0x70;
-        set_bit(&res->msg.header, 4);
-        res->msg.p_length = bswap_64(num_of_bytes);
-        write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-
-        uint8_t padding = (8-(num_of_bit)%8) % 8;
-        
-        for (int i = 0; i < padding; i++) {
-            clear_bit(compressed_msg, num_of_bit++);
-        }
-
-        
-        write(d->socketfd, compressed_msg, num_of_bytes-1);
-        write(d->socketfd, &padding, 1);
-
-        free(compressed_msg);
+        send_compression_msg(d, res, &compressed_msg, 0x70, &num_of_bit, &num_of_bytes);
     } else {
         res->msg.header = 0x70;
         res->msg.p_length = bswap_64(len+20);
@@ -758,8 +742,6 @@ int retrieve_file(connection_data_t *arg) {
         long len_temp = bswap_64(len);
         write(d->socketfd, &len_temp, 8);
         write(d->socketfd, file_content, len);
-
-        
     }
 
     fclose(fd);
