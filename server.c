@@ -316,6 +316,8 @@ void decompression_msg(connection_data_t *d, uint8_t* original_msg, char **decom
                         uint64_t read_len, uint8_t padding, uint64_t *cur_pos) {
     uint8_t code[4] = {0};
     uint32_t run_len = 0;
+    printf("gap%ld\n", read_len*8-padding);
+    printf("padding%d\n", padding);
     for (int i = 0; i < read_len*8-padding; i++) {
         if (get_bit(original_msg, i) == 1) {
             set_bit(code, run_len++);
@@ -626,7 +628,7 @@ int retrieve_file(connection_data_t *arg) {
 
             char *filename = strdup(decompressed_msg+20);
 
-            // printf("size is %ld\n", cur_pos);
+            printf("size is %ld\n", cur_pos);
 
             (void)filename;
 
