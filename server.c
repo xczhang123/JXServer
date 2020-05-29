@@ -674,9 +674,14 @@ int retrieve_file(connection_data_t *arg) {
                 return 0;
             }
 
+            char *path = malloc(strlen(d->path)+3+strlen(filename));
+            strcpy(path, d->path);
+            strcat(path, "/");
+            strcat(path, file->d_name);
+
             //Read target file
             FILE *fd;
-            if ((fd = fopen(filename, "r")) == NULL) {
+            if ((fd = fopen(path, "r")) == NULL) {
                 error(d);
                 free(filename);
                 free(res);
@@ -734,6 +739,7 @@ int retrieve_file(connection_data_t *arg) {
 
             free(filename);
             free(file_content);
+            free(path);
             free(res->msg.payload);
             free(res);
         } else {
