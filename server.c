@@ -574,6 +574,7 @@ int file_size_query(void *arg) {
         uint64_t num_of_bytes = 1;
         uint8_t *compressed_msg = malloc(1);
 
+        file_len = bswap_64(file_len);
         for (int i = 0; i < 8; i++) {
             uint8_t key = *((uint8_t*)(&file_len) + i);
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
