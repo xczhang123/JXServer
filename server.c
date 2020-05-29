@@ -271,12 +271,56 @@ int echo(void *arg) {
     // printf("%d\n", compression_bit);
     // printf("%d\n", require_compression);
 
-    if (!require_compression) {
+    if (require_compression && !compression_bit) {
+        //need compression
+        uint64_t length = bswap_64(d->msg.p_length);
+        res->msg.payload = malloc(length);
+        read(d->socketfd, res->msg.payload, length);
+        uint64_t num_of_bit = 0;
+        uint64_t num_of_bytes = 1;
+        uint8_t *compressed_msg = malloc(1);
+
+        for (int i = 0; i < length; i++) {
+            uint8_t key = res->msg.payload[i];
+            uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
+            uint8_t code[4] = {0};
+            memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
+            for (int j = 0; j < run_len; j++) {
+
+                if (num_of_bit == num_of_bytes * 8) {
+                    compressed_msg = realloc(compressed_msg, ++num_of_bytes);
+                }
+                
+                if (get_bit(code, j) == 1) {
+                    set_bit(compressed_msg, num_of_bit++);
+                } else {
+                    clear_bit(compressed_msg, num_of_bit++);
+                }
+            }
+        }
+        num_of_bytes += 1; //For the padding byte
+        res->msg.header = 0x10;
+        set_bit(&res->msg.header, 4);
+        res->msg.p_length = bswap_64(num_of_bytes);
+        write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
+        uint8_t padding = (8-num_of_bit%8) % 8;
+        // printf("num of bytes%ld\n", num_of_bytes);
+        // printf("num of bits%ld\n", num_of_bit);
+        // printf("padding: %d\n", padding);
+        for (int i = 0; i < padding; i++) {
+            clear_bit(compressed_msg, num_of_bit++);
+        }
+        write(d->socketfd, compressed_msg, num_of_bytes-1);
+        // padding = bswap_64(padding);
+        write(d->socketfd, &padding, 1);
+
+        free(compressed_msg);
+    } else {
         res->msg.header = 0x10;
         if (compression_bit) {
             set_bit(&res->msg.header, 4);
         }
-
         res->msg.p_length = d->msg.p_length;
         uint64_t length = bswap_64(res->msg.p_length);
 
@@ -285,67 +329,40 @@ int echo(void *arg) {
         res->msg.payload = malloc(length);
         read(d->socketfd, res->msg.payload, length);
         write(d->socketfd, res->msg.payload, length);
-    } else { //if the payload sent needs to be compressed
-        if (!compression_bit) {
-            //need compression
-            uint64_t length = bswap_64(d->msg.p_length);
-            res->msg.payload = malloc(length);
-            read(d->socketfd, res->msg.payload, length);
-            uint64_t num_of_bit = 0;
-            uint64_t num_of_bytes = 1;
-            uint8_t *compressed_msg = malloc(1);
-
-            for (int i = 0; i < length; i++) {
-                uint8_t key = res->msg.payload[i];
-                uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
-                uint8_t code[4] = {0};
-                memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
-                for (int j = 0; j < run_len; j++) {
-
-                    if (num_of_bit == num_of_bytes * 8) {
-                        compressed_msg = realloc(compressed_msg, ++num_of_bytes);
-                    }
-                    
-                    if (get_bit(code, j) == 1) {
-                        set_bit(compressed_msg, num_of_bit++);
-                    } else {
-                        clear_bit(compressed_msg, num_of_bit++);
-                    }
-                }
-            }
-            num_of_bytes += 1; //For the padding byte
-            res->msg.header = 0x10;
-            set_bit(&res->msg.header, 4);
-            res->msg.p_length = bswap_64(num_of_bytes);
-            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-
-            uint8_t padding = (8-num_of_bit%8) % 8;
-            // printf("num of bytes%ld\n", num_of_bytes);
-            // printf("num of bits%ld\n", num_of_bit);
-            // printf("padding: %d\n", padding);
-            for (int i = 0; i < padding; i++) {
-                clear_bit(compressed_msg, num_of_bit++);
-            }
-            write(d->socketfd, compressed_msg, num_of_bytes-1);
-            // padding = bswap_64(padding);
-            write(d->socketfd, &padding, 1);
-
-            free(compressed_msg);
-            
-        } else { //If it receives compression already
-            //directly send back
-            res->msg.header = 0x10;
-            set_bit(&res->msg.header, 4);
-            res->msg.p_length = d->msg.p_length;
-            uint64_t length = bswap_64(res->msg.p_length);
-
-            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-            
-            res->msg.payload = malloc(length);
-            read(d->socketfd, res->msg.payload, length);
-            write(d->socketfd, res->msg.payload, length);
-        }
     }
+
+    // if (!require_compression) {
+    //     res->msg.header = 0x10;
+    //     if (compression_bit) {
+    //         set_bit(&res->msg.header, 4);
+    //     }
+
+    //     res->msg.p_length = d->msg.p_length;
+    //     uint64_t length = bswap_64(res->msg.p_length);
+
+    //     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+        
+    //     res->msg.payload = malloc(length);
+    //     read(d->socketfd, res->msg.payload, length);
+    //     write(d->socketfd, res->msg.payload, length);
+    // } else { //if the payload sent needs to be compressed
+    //     if (!compression_bit) {
+            
+            
+    //     } else { //If it receives compression already
+    //         //directly send back
+    //         res->msg.header = 0x10;
+    //         set_bit(&res->msg.header, 4);
+    //         res->msg.p_length = d->msg.p_length;
+    //         uint64_t length = bswap_64(res->msg.p_length);
+
+    //         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+            
+    //         res->msg.payload = malloc(length);
+    //         read(d->socketfd, res->msg.payload, length);
+    //         write(d->socketfd, res->msg.payload, length);
+    //     }
+    // }
 
     free(res->msg.payload);
     free(res);
@@ -364,54 +381,66 @@ int dir_list(void *arg) {
 
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
 
-    struct stat sb;
-    DIR *dir;
-    struct dirent *file;
+    bool compression_bit = get_bit(&d->msg.header, 4) == 0x1; //if payload received is compressed
+    bool require_compression = get_bit(&d->msg.header, 5) == 0x1; //if payload sent needs to be compressed
 
-    bool found = false;
-    uint64_t length = 0;
-    if ((dir=opendir(d->path)) != NULL) {
-        while ((file = readdir(dir)) != NULL) {
-            stat(file->d_name, &sb);
-            if (file->d_type == DT_REG) {
-                found = true;
-                length += strlen(file->d_name) + 1;
+    if (!require_compression) {
+        struct stat sb;
+        DIR *dir;
+        struct dirent *file;
+
+        bool found = false;
+        uint64_t length = 0;
+        if ((dir=opendir(d->path)) != NULL) {
+            while ((file = readdir(dir)) != NULL) {
+                stat(file->d_name, &sb);
+                if (file->d_type == DT_REG) {
+                    found = true;
+                    length += strlen(file->d_name) + 1;
+                }
             }
+            closedir(dir);
+        } else {
+            error(d);
+            free(res);
+            return 0;
         }
-        closedir(dir);
-    } else {
-        error(d);
-        free(res);
-        return 0;
-    }
 
-    if (!found) {
-        length = 1;
+        if (!found) {
+            length = 1;
+            res->msg.header = 0x30;
+            res->msg.p_length = bswap_64(length);
+            write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
+            write(d->socketfd, "\0", 1);
+
+            free(res);
+            return 1;
+        }
+
         res->msg.header = 0x30;
+        if (compression_bit) {
+            set_bit(&res->msg.header, 4);
+        }
         res->msg.p_length = bswap_64(length);
         write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
-        write(d->socketfd, "\0", 1);
+
+        if ((dir=opendir(d->path)) != NULL) {
+            while ((file = readdir(dir)) != NULL) {
+                stat(file->d_name, &sb);
+                if (file->d_type == DT_REG) {
+                    write(d->socketfd, file->d_name, strlen(file->d_name));
+                    write(d->socketfd, "\0", 1);
+                }
+            }
+            closedir(dir);
+        }
 
         free(res);
-        return 1;
-    }
+    } else {
+        if (!compression_bit) {
 
-    res->msg.header = 0x30;
-    res->msg.p_length = bswap_64(length);
-    write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
-
-    if ((dir=opendir(d->path)) != NULL) {
-        while ((file = readdir(dir)) != NULL) {
-            stat(file->d_name, &sb);
-            if (file->d_type == DT_REG) {
-                write(d->socketfd, file->d_name, strlen(file->d_name));
-                write(d->socketfd, "\0", 1);
-            }
         }
-        closedir(dir);
     }
-
-    free(res);
     return 1;
 }
 
