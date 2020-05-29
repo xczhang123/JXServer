@@ -523,6 +523,7 @@ int file_size_query(void *arg) {
             // puts("\nDecoded filename: ");
             // printf("%x\n", filename[0]);
             // printf("%x\n", filename[1]);
+            free(res->msg.payload);
         } else {
             uint64_t read_len = bswap_64(d->msg.p_length);
             filename = (char*)malloc(read_len);
@@ -599,7 +600,7 @@ int file_size_query(void *arg) {
             filename = decompressed_msg;
         } else {
             uint64_t read_len = bswap_64(d->msg.p_length);
-            char *filename = (char*)malloc(read_len);
+            filename = (char*)malloc(read_len);
             read(d->socketfd, filename, read_len);;
         }
 
