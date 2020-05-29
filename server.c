@@ -767,7 +767,8 @@ int retrieve_file(connection_data_t *arg) {
             free(filename);
             free(file_content);
             free(path);
-            // free(res->msg.payload);
+            free(res->msg.payload);
+            free(decompressed_msg);
             free(res);
         } else {
 
