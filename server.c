@@ -493,83 +493,63 @@ int file_size_query(void *arg) {
     bool require_compression = get_bit(&d->msg.header, 5) == 0x1; //if payload sent needs to be compressed
 
     char *filename;
-    if (require_compression) {
-        if (compression_bit) {
-            //Decode first
-            uint64_t read_len = bswap_64(d->msg.p_length)-1;
-            char *decompressed_msg = malloc(1);
-            uint64_t cur_pos = 0;
+    if (compression_bit) {
+        //Decode first
+        uint64_t read_len = bswap_64(d->msg.p_length)-1;
+        char *decompressed_msg = malloc(1);
+        uint64_t cur_pos = 0;
 
-            res->msg.payload = malloc(read_len);
-            read(d->socketfd, res->msg.payload, read_len);
-            uint8_t padding;
-            read(d->socketfd, &padding, 1);
+        res->msg.payload = malloc(read_len);
+        read(d->socketfd, res->msg.payload, read_len);
+        uint8_t padding;
+        read(d->socketfd, &padding, 1);
 
-            decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding, &cur_pos);
-            //Decode ends
-            // printf("%d\n", padding);
+        decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding, &cur_pos);
+        filename = decompressed_msg;
+        free(res->msg.payload);
+    } else {
+        uint64_t read_len = bswap_64(d->msg.p_length);
+        filename = (char*)malloc(read_len);
+        read(d->socketfd, filename, read_len);
+    }
 
-            // for (int i = 0; i < read_len*8-padding; i++) {
-            //     printf("%d ", get_bit(res->msg.payload, i));
-            // }
-            // puts("");
+    struct stat sb;
+    DIR *dir;
+    struct dirent *file;
 
-            // printf("Decompressed msg: ");;
-            // for (int i = 0; i < 4; i++ ) {
-            //      printf("%hhx ", res->msg.payload[i]);
-            // }
-            // puts("");
-            filename = decompressed_msg;
-            // puts("\nDecoded filename: ");
-            // printf("%x\n", filename[0]);
-            // printf("%x\n", filename[1]);
-            free(res->msg.payload);
-        } else {
-            uint64_t read_len = bswap_64(d->msg.p_length);
-            filename = (char*)malloc(read_len);
-            read(d->socketfd, filename, read_len);
-        }
-
-        // puts("decoded filename: ");
-        // puts(filename);
-
-        struct stat sb;
-        DIR *dir;
-        struct dirent *file;
-
-        bool found = false;
-        uint64_t file_len = 0;
-        if ((dir=opendir(d->path)) != NULL) {
-            while ((file = readdir(dir)) != NULL) {
-                char *file_name_full = malloc(strlen(d->path)+3+strlen(file->d_name));
-                strcpy(file_name_full, d->path);
-                strcat(file_name_full, "/");
-                strcat(file_name_full, file->d_name);
-                stat(file_name_full, &sb);
-                free(file_name_full);
-                if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
-                    found = true;
-                    file_len = sb.st_size;
-                    break;
-                }
+    bool found = false;
+    uint64_t file_len = 0;
+    if ((dir=opendir(d->path)) != NULL) {
+        while ((file = readdir(dir)) != NULL) {
+            char *file_name_full = malloc(strlen(d->path)+3+strlen(file->d_name));
+            strcpy(file_name_full, d->path);
+            strcat(file_name_full, "/");
+            strcat(file_name_full, file->d_name);
+            stat(file_name_full, &sb);
+            free(file_name_full);
+            if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
+                found = true;
+                file_len = sb.st_size;
+                break;
             }
-            closedir(dir);
-        } else {
-            error(d);
-            free(filename);
-            free(res); 
-            return 0;
         }
+        closedir(dir);
+    } else {
+        error(d);
+        free(filename);
+        free(res); 
+        return 0;
+    }
 
-        //If the file is not found
-        if (!found) {
-            error(d);
-            free(filename);
-            free(res); 
-            return 0;
-        }
+    //If the file is not found
+    if (!found) {
+        error(d);
+        free(filename);
+        free(res); 
+        return 0;
+    }
 
-
+    if (require_compression) {
         uint64_t num_of_bit = 0;
         uint64_t num_of_bytes = 1;
         uint8_t *compressed_msg = malloc(1);
@@ -587,60 +567,6 @@ int file_size_query(void *arg) {
         free(filename);
         free(res); 
     } else {
-        if (compression_bit) {
-            uint64_t read_len = bswap_64(d->msg.p_length)-1;
-            char *decompressed_msg = malloc(1);
-            uint64_t cur_pos = 0;
-
-            res->msg.payload = malloc(read_len);
-            read(d->socketfd, res->msg.payload, read_len);
-            uint8_t padding;
-            read(d->socketfd, &padding, 1);
-
-            decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding, &cur_pos);
-            filename = decompressed_msg;
-        } else {
-            uint64_t read_len = bswap_64(d->msg.p_length);
-            filename = (char*)malloc(read_len);
-            read(d->socketfd, filename, read_len);;
-        }
-
-        struct stat sb;
-        DIR *dir;
-        struct dirent *file;
-
-        bool found = false;
-        uint64_t file_len = 0;
-        if ((dir=opendir(d->path)) != NULL) {
-            while ((file = readdir(dir)) != NULL) {
-                char *file_name_full = malloc(strlen(d->path)+3+strlen(file->d_name));
-                strcpy(file_name_full, d->path);
-                strcat(file_name_full, "/");
-                strcat(file_name_full, file->d_name);
-                stat(file_name_full, &sb);
-                free(file_name_full);
-                if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
-                    found = true;
-                    file_len = sb.st_size;
-                    break;
-                }
-            }
-            closedir(dir);
-        } else {
-            error(d);
-            free(filename);
-            free(res); 
-            return 0;
-        }
-
-        //If the file is not found
-        if (!found) {
-            error(d);
-            free(filename);
-            free(res); 
-            return 0;
-        }
-
         uint64_t num_len = 8;
         file_len = bswap_64(file_len);
         
