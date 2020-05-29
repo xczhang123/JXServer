@@ -621,7 +621,7 @@ int retrieve_file(connection_data_t *arg) {
             memcpy(&session, decompressed_msg, 4);
 
             // printf("session: %d\n", session);
-            session = bswap_32(session);
+            // session = bswap_32(session);
 
             uint64_t start;
             memcpy(&start, decompressed_msg+4, 8);
@@ -698,6 +698,9 @@ int retrieve_file(connection_data_t *arg) {
             fseek(fd, start, SEEK_SET);
             uint8_t *file_content = malloc(len);
             fread(file_content, 1, len, fd);
+
+            printf("%ld\n", len+20);
+            printf("%ld\n", bswap_64(len+20));
 
             res->msg.header = 0x70;
             res->msg.p_length = bswap_64(len+20);
