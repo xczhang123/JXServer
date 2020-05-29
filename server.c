@@ -699,6 +699,21 @@ int retrieve_file(connection_data_t *arg) {
             uint64_t num_of_bytes = 1;
             uint8_t *compressed_msg = malloc(1);
 
+            for (int i = 0; i < 4; i++) {
+                uint8_t key = *((uint8_t*)&session+i);   
+                compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
+            }
+            start = bswap_64(start);
+            for (int i = 0; i < 8; i++) {
+                uint8_t key = *((uint8_t*)&start+i);   
+                compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
+            }
+            len = bswap_64(len);
+            for (int i = 0; i < 8; i++) {
+                uint8_t key = *((uint8_t*)&len+i);  
+                compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
+            }
+
             for (int i = 0; i < len; i++) {
                 compression_char(d, &compressed_msg, file_content[i], &num_of_bytes, &num_of_bit);
             }
@@ -716,9 +731,9 @@ int retrieve_file(connection_data_t *arg) {
             }
 
             write(d->socketfd, &session, 4);
-            start = bswap_64(start);
+            // start = bswap_64(start);
             write(d->socketfd, &start, 8);
-            len = bswap_64(len);
+            // len = bswap_64(len);
             write(d->socketfd, &len, 8);
             write(d->socketfd, compressed_msg, num_of_bytes-1);
             write(d->socketfd, &padding, 1);
