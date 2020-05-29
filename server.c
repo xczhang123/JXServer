@@ -696,11 +696,14 @@ int retrieve_file(connection_data_t *arg) {
             }
 
             fseek(fd, start, SEEK_SET);
+
+            // printf("the fd is %d\n", fd);
             uint8_t *file_content = malloc(len);
             fread(file_content, 1, len, fd);
+            // printf("the fd is %d\n", fd);
 
-            printf("%ld\n", len+20);
-            printf("%ld\n", bswap_64(len+20));
+            // printf("%ld\n", len+20);
+            // printf("%ld\n", bswap_64(len+20));
 
             res->msg.header = 0x70;
             res->msg.p_length = bswap_64(len+20);
@@ -709,15 +712,14 @@ int retrieve_file(connection_data_t *arg) {
             write(d->socketfd, &session, 4);
             start = bswap_64(start);
             write(d->socketfd, &start, 8);
-            len = bswap_64(len);
-            write(d->socketfd, &len, 8);
+            long len_temp = bswap_64(len);
+            write(d->socketfd, &len_temp, 8);
             write(d->socketfd, file_content, len);
 
-            puts("AM I here?");
-
-            write(d->socketfd, file_content, len);
-
-
+            // printf("a is : %ld\n", a);
+            // printf("b is : %ld\n", b);
+            // printf("c is : %ld\n", c);
+            // printf("d is : %ld\n", d);
             // uint64_t num_of_bit = 0;
             // uint64_t num_of_bytes = 1;
             // uint8_t *compressed_msg = malloc(1);
