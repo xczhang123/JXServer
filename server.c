@@ -859,11 +859,6 @@ int retrieve_file(connection_data_t *arg) {
                 clear_bit(compressed_msg, num_of_bit++);
             }
 
-            // write(d->socketfd, &session, 4);
-            // start = bswap_64(start);
-            // write(d->socketfd, &start, 8);
-            // len = bswap_64(len);
-            // write(d->socketfd, &len, 8);
             write(d->socketfd, compressed_msg, num_of_bytes-1);
             write(d->socketfd, &padding, 1);
 
@@ -872,7 +867,7 @@ int retrieve_file(connection_data_t *arg) {
             free(filename);
             free(file_content);
             free(path);
-            free(res->msg.payload);
+            // free(res->msg.payload);
             // free(compressed_msg);
             // free(decompressed_msg);
             free(res);
