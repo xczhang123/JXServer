@@ -756,7 +756,7 @@ int retrieve_file(connection_data_t *arg) {
             read(d->socketfd, &len, sizeof(uint64_t));
             len = bswap_64(len);
 
-            char *filename = malloc(d->msg.p_length);
+            char *filename = malloc(bswap_64(d->msg.p_length));
             read(d->socketfd, filename, d->msg.p_length-20);
 
             struct stat sb;
@@ -984,19 +984,6 @@ int retrieve_file(connection_data_t *arg) {
             long len_temp = bswap_64(len);
             write(d->socketfd, &len_temp, 8);
             write(d->socketfd, file_content, len);
-
-
-            // free(compressed_msg);
-            
-
-
-            // printf("start %ld\n", bswap_64(start));
-            //  printf("len %ld\n", bswap_64(len));
-            // printf("filename%s\n", filename);
-
-            // printf("size is %ld\n", cur_pos);
-
-            // (void)filename;
 
             fclose(fd);
             free(filename);
