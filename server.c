@@ -470,13 +470,13 @@ int dir_list(void *arg) {
         DIR *dir;
         struct dirent *file;
 
-        bool is_empty = false;
+        bool is_empty = true;
         uint64_t length = 0;
         if ((dir=opendir(d->path)) != NULL) {
             while ((file = readdir(dir)) != NULL) {
                 stat(file->d_name, &sb);
                 if (file->d_type == DT_REG) {
-                    is_empty = true;
+                    is_empty = false;
                     length += strlen(file->d_name) + 1;
                 }
             }
