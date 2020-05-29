@@ -720,7 +720,7 @@ int retrieve_file(connection_data_t *arg) {
             num_of_bytes += 1;
             res->msg.header = 0x70;
             set_bit(&res->msg.header, 4);
-            res->msg.p_length = bswap_64(num_of_bytes+20);
+            res->msg.p_length = bswap_64(num_of_bytes);
             write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
             padding = (8-(num_of_bit)%8) % 8;
