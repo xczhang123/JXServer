@@ -620,7 +620,7 @@ int retrieve_file(connection_data_t *arg) {
             uint32_t session;
             memcpy(&session, decompressed_msg, 4);
 
-            printf("session: %d\n", session);
+            // printf("session: %d\n", session);
             // session = bswap_32(session);
 
             uint64_t start;
