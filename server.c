@@ -316,8 +316,8 @@ void decompression_msg(connection_data_t *d, uint8_t* original_msg, char **decom
                         uint64_t read_len, uint8_t padding, uint64_t *cur_pos) {
     uint8_t code[4] = {0};
     uint32_t run_len = 0;
-    printf("gap%ld\n", read_len*8-padding);
-    printf("padding%d\n", padding);
+    // printf("gap%ld\n", read_len*8-padding);
+    // printf("padding%d\n", padding);
     for (int i = 0; i < read_len*8-padding; i++) {
         if (get_bit(original_msg, i) == 1) {
             set_bit(code, run_len++);
@@ -619,30 +619,123 @@ int retrieve_file(connection_data_t *arg) {
 
             uint32_t session;
             memcpy(&session, decompressed_msg, 4);
+            // session = bswap_32(session);
 
             uint64_t start;
             memcpy(&start, decompressed_msg+4, 8);
+            session = bswap_64(start);
 
             uint64_t len;
             memcpy(&len, decompressed_msg+12, 8);
+            session = bswap_64(len);
 
             char *filename = strdup(decompressed_msg+20);
 
-            printf("start %ld\n", bswap_64(start));
-             printf("len %ld\n", bswap_64(len));
-            printf("filename%s\n", filename);
+            struct stat sb;
+            DIR *dir;
+            struct dirent *file;
 
-            printf("size is %ld\n", cur_pos);
+            bool found = false;
+            uint64_t file_len = 0;
+            if ((dir=opendir(d->path)) != NULL) {
+                while ((file = readdir(dir)) != NULL) {
+                    char *file_name_full = malloc(strlen(d->path)+3+strlen(file->d_name));
+                    strcpy(file_name_full, d->path);
+                    strcat(file_name_full, "/");
+                    strcat(file_name_full, file->d_name);
+                    stat(file_name_full, &sb);
+                    free(file_name_full);
+                    if (file->d_type == DT_REG && strcmp(file->d_name, filename) == 0) {
+                        found = true;
+                        file_len = sb.st_size;
+                        break;
+                    }
+                    closedir(dir);
+                }
+            } else {
+                error(d);
+                free(filename);
+                free(res); 
+                return 0;
+            }
 
-            (void)filename;
+            //If the file is not found
+            if (!found) {
+                error(d);
+                free(filename);
+                free(res); 
+                return 0;
+            }
+
+            if (start + len > file_len) {
+                error(d);
+                free(filename);
+                free(res);
+                return 0;
+            }
+
+            //Read target file
+            FILE *fd;
+            if ((fd = fopen(filename, "r")) == NULL) {
+                error(d);
+                free(filename);
+                free(res);
+                return 0;
+            }
+
+            fseek(fd, start, SEEK_SET);
+            uint8_t *file_content = malloc(len);
+            fread(file_content, 1, len, fd);
+
+            
+            uint64_t num_of_bit = 0;
+            uint64_t num_of_bytes = 1;
+            uint8_t *compressed_msg = malloc(1);
+
+            for (int i = 0; i < len; i++) {
+                compression_char(d, &compressed_msg, file_content[i], &num_of_bytes, &num_of_bit);
+            }
+
+            num_of_bytes += 1;
+            res->msg.header = 0x70;
+            set_bit(&res->msg.header, 4);
+            res->msg.p_length = bswap_64(num_of_bytes+20);
+            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
+            padding = (8-(num_of_bit)%8) % 8;
+            
+            for (int i = 0; i < padding; i++) {
+                clear_bit(compressed_msg, num_of_bit++);
+            }
+
+            write(d->socketfd, &session, 4);
+            start = bswap_64(start);
+            write(d->socketfd, &start, 8);
+            len = bswap_64(len);
+            write(d->socketfd, &len, 8);
+            write(d->socketfd, compressed_msg, num_of_bytes-1);
+            write(d->socketfd, &padding, 1);
+
+            free(compressed_msg);
+            
+
+
+            // printf("start %ld\n", bswap_64(start));
+            //  printf("len %ld\n", bswap_64(len));
+            // printf("filename%s\n", filename);
+
+            // printf("size is %ld\n", cur_pos);
+
+            // (void)filename;
 
 
 
 
 
-
-
+            free(filename);
+            free(file_content);
             free(res->msg.payload);
+            free(res);
         } else {
 
         }
