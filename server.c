@@ -629,6 +629,7 @@ int retrieve_file(connection_data_t *arg) {
             char *filename = strdup(decompressed_msg+20);
 
             printf("start %ld\n", bswap_64(start));
+             printf("len %ld\n", bswap_64(len));
             printf("filename%s\n", filename);
 
             printf("size is %ld\n", cur_pos);
