@@ -699,6 +699,10 @@ int retrieve_file(connection_data_t *arg) {
             uint8_t *file_content = malloc(len);
             fread(file_content, 1, len, fd);
 
+            res->msg.header = 0x70;
+            res->msg.p_length = bswap_64(len+20);
+            write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+
             write(d->socketfd, &session, 4);
             start = bswap_64(start);
             write(d->socketfd, &start, 8);
