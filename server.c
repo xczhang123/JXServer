@@ -708,9 +708,9 @@ int retrieve_file(connection_data_t *arg) {
                 uint8_t key = *((uint8_t*)&start+i);   
                 compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
             }
-            len = bswap_64(len);
+            uint64_t len_temp = bswap_64(len);
             for (int i = 0; i < 8; i++) {
-                uint8_t key = *((uint8_t*)&len+i);  
+                uint8_t key = *((uint8_t*)&len_temp+i);  
                 compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
             }
             for (int i = 0; i < len; i++) {
