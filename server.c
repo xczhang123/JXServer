@@ -1075,6 +1075,13 @@ int retrieve_file(connection_data_t *arg) {
             long len_temp = bswap_64(len);
             write(d->socketfd, &len_temp, 8);
             write(d->socketfd, file_content, len);
+
+            fclose(fd);
+            free(filename);
+            free(file_content);
+            free(path);
+            // free(compressed_msg);
+            free(res);
         }
     }
 
