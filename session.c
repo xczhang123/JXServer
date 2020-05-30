@@ -53,6 +53,7 @@ void session_array_delete(session_t *s, uint32_t id, uint64_t start, uint64_t le
         }
     }
     
+    
     pthread_mutex_unlock(&s->lock);
 }
 
