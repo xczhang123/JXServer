@@ -578,7 +578,7 @@ int file_size_query(void *arg) {
     } else {
         uint64_t num_len = 8;
         file_len = htobe64(file_len);
-        
+
         res->msg.header = 0x50;
         res->msg.p_length = htobe64(num_len);
         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
@@ -645,6 +645,7 @@ int retrieve_file(connection_data_t *arg) {
     struct stat sb;
     DIR *dir;
     struct dirent *file;
+
 
     bool found = false;
     uint64_t file_len = 0;
