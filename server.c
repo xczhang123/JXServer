@@ -713,7 +713,7 @@ int retrieve_file(connection_data_t *arg) {
     // Session id cannot be reused with the same file with same byte range 
     if (session_array_is_in_archive(archived_s, session, start, len, path)) {
         error(d);
-        puts("archive was called!");
+        // puts("archive was called!");
 
         fclose(fd);
         free(filename);
@@ -721,12 +721,12 @@ int retrieve_file(connection_data_t *arg) {
         free(path);
         free(res);
         
-        
+
         return 0;
     }
 
     if (session_array_is_in_active(s, session, start, len, path)) {
-        puts("activeeee was called!");
+        // puts("activeeee was called!");
         res->msg.header = 0x70;
         res->msg.p_length = 0;
         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
