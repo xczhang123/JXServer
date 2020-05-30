@@ -180,13 +180,7 @@ void compression_reader(configuration_t *config) {
 
         insert(root, count, code, run_len);
 
-        // show(cd->arr[cd->cur_pos-1]->code, run_len);
-
         count++;
-
-        // binary_tree_node *n = search(root, code, run_len);
-        // show(n->code, n->len);
-        // break;
     }
 
     config->cd = cd;
@@ -650,6 +644,7 @@ int retrieve_file(connection_data_t *arg) {
         filename = malloc(be64toh(d->msg.p_length));
         read(d->socketfd, filename, be64toh(d->msg.p_length)-20);
     }
+
 
     struct stat sb;
     DIR *dir;
