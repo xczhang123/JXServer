@@ -18,15 +18,15 @@
 #include "queue.h"
 #include "session.h"
 
-#define THREAD_POOL_SIZE (20)
+#define THREAD_POOL_SIZE (8)
 #define LISTENING_SIZE (100)
 
 pthread_t thread_pool[THREAD_POOL_SIZE];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER;
 bool __shutdown = false;
-session_t *s;
-session_t *archived_s;
+session_t *s; //Store active session information
+session_t *archived_s; //Store previous sessions 
 
 void config_reader(configuration_t *config, char* config_file_name);
 void compression_reader(configuration_t *config);
@@ -789,6 +789,7 @@ int retrieve_file(connection_data_t *arg) {
     free(file_content);
     free(path);
     free(res);
+    
 
     return 1;
 }

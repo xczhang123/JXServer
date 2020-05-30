@@ -5,3 +5,4 @@ generate-config.c
 test.c
 test.bash
 sample-compression-dictionary-readable.txt
+sample-performance-parameters.h
