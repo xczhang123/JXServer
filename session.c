@@ -97,7 +97,6 @@ bool session_array_is_in_archive(session_t *archive, uint32_t id, uint64_t start
                 break;
         }
     }
-
     pthread_mutex_unlock(&archive->lock);
 
 
