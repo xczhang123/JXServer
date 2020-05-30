@@ -99,6 +99,7 @@ int main(int argc, char** argv) {
     compress_dict_free(config->cd);
     binary_tree_destroy(config->root);
     session_array_free(s);
+    session_array_free(archived_s);
     free(config);
     exit(0);
 }
