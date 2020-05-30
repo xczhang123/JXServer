@@ -705,14 +705,22 @@ int retrieve_file(connection_data_t *arg) {
     uint8_t *file_content = malloc(len);
     fread(file_content, 1, len, fd);
 
-    //Add to the session list
-    session_array_add(s, session, start, len, path);
+    if (session_array_is_in(s, session, start, len, path)) {
+        res->msg.header = 0x70;
+        res->msg.payload = 0;
+        write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
-    // if (session_array_is_in(s, session, start, len, path)) {
-    //     res->msg.header = 0x70;
-    //     res->msg.payload = 0;
-    //     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
-    // }
+        fclose(fd);
+        free(filename);
+        free(file_content);
+        free(path);
+        free(res);
+
+        return 1;
+    } 
+
+        //Add to the session list
+    session_array_add(s, session, start, len, path);
 
     if (require_compression) {
         uint64_t num_of_bit = 0;
