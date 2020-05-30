@@ -707,7 +707,7 @@ int retrieve_file(connection_data_t *arg) {
 
     if (session_array_is_in(s, session, start, len, path)) {
         res->msg.header = 0x70;
-        res->msg.payload = 0;
+        res->msg.p_length = 0;
         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
         fclose(fd);
@@ -719,7 +719,7 @@ int retrieve_file(connection_data_t *arg) {
         return 1;
     } 
 
-        //Add to the session list
+    //Add to the session list
     session_array_add(s, session, start, len, path);
 
     if (require_compression) {
