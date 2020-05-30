@@ -36,26 +36,30 @@ void compression_char(connection_data_t *d, uint8_t** compressed_msg,
 void send_compression_msg(connection_data_t *d, connection_data_t *res, uint8_t **compressed_msg, 
                             uint8_t header, uint64_t *num_of_bit, uint64_t *num_of_bytes);
 void decompression_msg(connection_data_t *d, uint8_t* original_msg, char **decompression_msg, 
-                        uint64_t read_len, uint8_t padding, uint64_t *cur_pos);
+                        uint64_t read_len, uint8_t padding);
 
 
 int main(int argc, char** argv) {
 	
 	int serversocket_fd = -1;
 	int clientsocket_fd = -1;
- 
+    
+    // 1. Read the server config file
+    // 2. Set up compression dictionary and decompression tree
     configuration_t *config = malloc(sizeof(configuration_t));
     config_reader(config, argv[1]);
     compression_reader(config);
     
-    session_t *s = session_array_init(); //Store active session information
+    session_t *s = session_array_init(); // Store active session information
     session_t *archived_s = session_array_init(); //Store previous sessions 
 
+    // Threads mutex and conditional variable, and shutdown signal
     server_controller_t *con = malloc(sizeof(server_controller_t));
     pthread_mutex_init(&con->mutex, NULL);
     pthread_cond_init(&con->condition_var, NULL);
     con->__shutdown = false;
 
+    // We limit the number of threads to be THREAD_POOL_SIZE
     pthread_t thread_pool[THREAD_POOL_SIZE];
     for (int i = 0; i < THREAD_POOL_SIZE; i++) {
         pthread_create(thread_pool+i, NULL, thread_handler, con);
@@ -91,6 +95,7 @@ int main(int argc, char** argv) {
             d->config->s = s;
             d->config->archived_s = archived_s;
 
+            // Enqueue the job to the pool and signify the waiting thread
             pthread_mutex_lock(&con->mutex);
             enqueue(d);
             pthread_cond_signal(&con->condition_var);
@@ -108,6 +113,7 @@ int main(int argc, char** argv) {
     exit(0);
 }
 
+/* Read the server config info: ip address, port and directory path */
 void config_reader(configuration_t *config, char* config_file_name) {
     FILE *fp;
     if ((fp = fopen(config_file_name, "rb")) == NULL) {
@@ -138,6 +144,7 @@ void config_reader(configuration_t *config, char* config_file_name) {
     fclose(fp);
 }
 
+/* Build up compression dictionary and decompression tree */
 void compression_reader(configuration_t *config) {
     FILE *f = fopen("compression.dict", "rb");
     fseek(f, 0, SEEK_END);
@@ -147,8 +154,8 @@ void compression_reader(configuration_t *config) {
     fread(arr, 1, file_len, f);
     fclose(f);
 
-    compress_dict_t *cd = compress_dict_init();
-    binary_tree_node *root = new_empty();
+    compress_dict_t *cd = compress_dict_init(); // Key-value pairs for compression
+    binary_tree_node *root = new_empty(); //Binary tree for decompression
 
     int count = 0;
     int i = 0;
@@ -161,7 +168,7 @@ void compression_reader(configuration_t *config) {
                 set_bit(&run_len, j);
             }
         }
-        // We must have read the padding at the end
+        // We must have read the padding at the end, break the loop
         if (run_len == 0) {
             break;
         }
@@ -175,9 +182,9 @@ void compression_reader(configuration_t *config) {
         }
 
         //Add to the compression dictionary
-        //The key is assumed to be incremental starting from 0
         compress_dict_add(cd, code, run_len);
 
+        //The key(count) is assumed to be incremental starting from 0
         insert(root, count, code, run_len);
 
         count++;
@@ -188,6 +195,7 @@ void compression_reader(configuration_t *config) {
     arr_destroy(arr);
 }
 
+/* Thread pool controller to delegate work to the waiting threads */
 void* thread_handler(void* arg) {
     server_controller_t *con = (server_controller_t*)arg;
     while (true) {
@@ -195,43 +203,40 @@ void* thread_handler(void* arg) {
         pthread_mutex_lock(&con->mutex);
         while ((d = dequeue()) == NULL) {
             pthread_cond_wait(&con->condition_var, &con->mutex); 
-            if (con->__shutdown) {
+            if (con->__shutdown) { //If the server should be shut down, thread exits
                 pthread_mutex_unlock(&con->mutex);
-                // puts("Thread exiting...");
                 pthread_exit(NULL);
             }
         }; 
         pthread_mutex_unlock(&con->mutex);
-
+        
+        //We have some work to do
         if (d != NULL) {
-            //We have some work to do
             connection_handler(d);
         }
     }
-
 }
-
+/* Thread work handler: reading data from the assigned client and react properly */
 void* connection_handler(void* arg) {
 	connection_data_t* d = (connection_data_t*) arg;
+    
     bool stop = false;
     while(!stop) {
 
-        // If the client refuses to connect, we disconnect it
+        // If the client refuses to connect, we disconnect
         if (message_header_reader(d) == 0) {
-            // error(d);
             break;
         }
 
+        // Retrieve the message type
         uint8_t type = (d->msg.header >> 4 & 0xf) | 0x00;
 
-        // printf("Type is : %d\n", type);
-
+        // All the functions below return 1 as success or 0 as failure
         switch (type) {
             case 0x00:
                 if (!echo(d)){
                     stop = true;
                 };
-                // echo(d);
                 break;
             case 0x02:
                 if (!dir_list(d)) {
@@ -265,12 +270,12 @@ void* connection_handler(void* arg) {
 	return NULL;
 }
 
-/* return 1 for success, otherwise 0 */
+/* Read the first two field of the message: header and message length
+   return 1 for success, otherwise 0 */
 int message_header_reader(void* arg) {
     connection_data_t* d = (connection_data_t*) arg;
     ssize_t nread = read(d->socketfd, &d->msg, sizeof(d->msg.header)+sizeof(d->msg.p_length));
 
-    // printf("nread %ld\n", nread);
     if (nread <= 0) {
         return 0;
     } else {
@@ -278,18 +283,26 @@ int message_header_reader(void* arg) {
     }
 }
 
+/* Compress the given key and add it to compressed payload
+    d: connection data which contains all the info about one connection
+    compress_msg: compressed payload
+    key: key to be compressed
+    num_of_bytes: number of bytes of compressed payload
+    num_of_bit: number of bits of compressed payload
+*/
 void compression_char(connection_data_t *d, uint8_t** compressed_msg, uint8_t key, uint64_t *num_of_bytes, uint64_t *num_of_bit) {
-    uint8_t run_len = compress_dict_get(d->config->cd, key)->len;
+    uint8_t run_len = compress_dict_get(d->config->cd, key)->len; //Extract number of bits
     uint8_t code[4] = {0};
-    memcpy(code, compress_dict_get(d->config->cd, key)->code, 4);
+    memcpy(code, compress_dict_get(d->config->cd, key)->code, 4); //Extract compression code
 
     for (int j = 0; j < run_len; j++) {
                 
-        // Realloc one mor byte
+        // We realloc one more byte each time when the current byte is full
         if (*num_of_bit == *num_of_bytes * 8) {
             *compressed_msg = realloc(*compressed_msg, ++(*num_of_bytes));
         }
         
+        //Set -> 1 or clear -> 0 bit one each time
         if (get_bit(code, j) == 1) {
             set_bit(*compressed_msg, (*num_of_bit)++);
         } else {
@@ -298,6 +311,14 @@ void compression_char(connection_data_t *d, uint8_t** compressed_msg, uint8_t ke
     }
 }
 
+/* Send the compressed payload to the client
+    d: connection data which contains all the info about one connection
+    res: response to the client
+    compress_msg: compressed payload
+    header: header of the response
+    num_of_bit: number of bits of compressed payload
+    num_of_bytes: number of bytes of compressed payload
+ */
 void send_compression_msg(connection_data_t *d, connection_data_t *res, uint8_t **compressed_msg, 
                             uint8_t header, uint64_t *num_of_bit, uint64_t *num_of_bytes) {
     *num_of_bytes += 1;
@@ -306,6 +327,7 @@ void send_compression_msg(connection_data_t *d, connection_data_t *res, uint8_t 
     res->msg.p_length = htobe64(*num_of_bytes);
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
+    //Set the padding in the compressed payload
     uint8_t padding = (8-(*num_of_bit)%8) % 8;
        
     for (int i = 0; i < padding; i++) {
@@ -317,32 +339,46 @@ void send_compression_msg(connection_data_t *d, connection_data_t *res, uint8_t 
     free(*compressed_msg);
 }
 
+/* Decompress the payload from the client
+    d: connection data which contains all the info about one connection
+    original_msg: original compressed payload from the client
+    decompression_msg: decompressed payload
+    read_len: number of bits of the original payload
+    padding: number of paddings of the original payload
+*/
+
 void decompression_msg(connection_data_t *d, uint8_t* original_msg, char **decompression_msg, 
-                        uint64_t read_len, uint8_t padding, uint64_t *cur_pos) {
+                        uint64_t read_len, uint8_t padding) {
     uint8_t code[4] = {0};
     uint32_t run_len = 0;
-    // printf("gap%ld\n", read_len*8-padding);
-    // printf("padding%d\n", padding);
+    uint64_t cur_pos = 0;
+
     for (int i = 0; i < read_len*8-padding; i++) {
+        //Copy bits from the original compressed message
         if (get_bit(original_msg, i) == 1) {
             set_bit(code, run_len++);
         } else {
             clear_bit(code, run_len++);
         }
-    
+
+        //We search the binary decompression tree and find the key, if exist(it is the leaf node)
         binary_tree_node *n = search(d->config->root, code, run_len);
         if (n != NULL) {
             if (n->defined) {
-                *decompression_msg = realloc(*decompression_msg, (*cur_pos)+1);
+                *decompression_msg = realloc(*decompression_msg, cur_pos+1);
                 char key = n->key;
-                (*decompression_msg)[(*cur_pos)++] = key;
+                (*decompression_msg)[cur_pos++] = key;
                 memset(code, 0, 4);
-                run_len = 0;
+                run_len = 0; //reset run_len since we have found one key
             }
         }
     }
 }
 
+/* Message header 0x00, return 1 for success, otherwise 0
+    Note: We don't care decompression here since we can write back
+          compressed message directly
+*/
 int echo(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
@@ -351,7 +387,7 @@ int echo(void *arg) {
     bool require_compression = get_bit(&d->msg.header, 5) == 0x1; //if payload sent needs to be compressed
 
     if (require_compression && !compression_bit) {
-        //need compression
+        //need compression first
         uint64_t length = be64toh(d->msg.p_length);
         res->msg.payload = malloc(length);
         read(d->socketfd, res->msg.payload, length);
@@ -364,7 +400,7 @@ int echo(void *arg) {
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
         }
         send_compression_msg(d, res, &compressed_msg, 0x10, &num_of_bit, &num_of_bytes);
-    } else {
+    } else { // Directly send back payload (either compressed or not)
         res->msg.header = 0x10;
         if (compression_bit) {
             set_bit(&res->msg.header, 4);
@@ -385,6 +421,9 @@ int echo(void *arg) {
     return 1;
 }
 
+/* List directory: return 1 for success, otherwise 0 
+    Note: we don't care decompression here since payload length
+          is guaranteed to be 0 */
 int dir_list(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     if (d->msg.p_length != 0) {
@@ -394,7 +433,6 @@ int dir_list(void *arg) {
 
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
 
-    // bool compression_bit = get_bit(&d->msg.header, 4) == 0x1; //if payload received is compressed (ignored here since payload = 0)
     bool require_compression = get_bit(&d->msg.header, 5) == 0x1; //if payload sent needs to be compressed
 
     if (require_compression) {
@@ -509,14 +547,13 @@ int file_size_query(void *arg) {
         //Decode first
         uint64_t read_len = be64toh(d->msg.p_length)-1;
         char *decompressed_msg = malloc(1);
-        uint64_t cur_pos = 0;
 
         res->msg.payload = malloc(read_len);
         read(d->socketfd, res->msg.payload, read_len);
         uint8_t padding;
         read(d->socketfd, &padding, 1);
 
-        decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding, &cur_pos);
+        decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding);
         filename = decompressed_msg;
         free(res->msg.payload);
     } else {
@@ -611,14 +648,13 @@ int retrieve_file(connection_data_t *arg) {
         //Decode first
         uint64_t read_len = be64toh(d->msg.p_length)-1;
         char *decompressed_msg = malloc(1);
-        uint64_t cur_pos = 0;
 
         res->msg.payload = malloc(read_len);
         read(d->socketfd, res->msg.payload, read_len);
         uint8_t padding;
         read(d->socketfd, &padding, 1);
 
-        decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding, &cur_pos);
+        decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding);
 
         memcpy(&session, decompressed_msg, 4);
 
