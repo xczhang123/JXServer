@@ -721,6 +721,7 @@ int retrieve_file(connection_data_t *arg) {
         free(path);
         free(res);
 
+
         return 0;
     }
 
