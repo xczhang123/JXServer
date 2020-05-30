@@ -35,6 +35,8 @@ void session_array_add(session_t *s, uint32_t id, uint64_t start, uint64_t len, 
     memcpy(seg.filename, filename, strlen(filename)+1);
 
     puts(seg.filename);
+    printf("start: %ld\n", start);
+    printf("len: %ld\n", len);
 
     s->sessions[s->size++] = seg;
 
