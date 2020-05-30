@@ -2,6 +2,8 @@
 #define QUEUE
 
 #include <stdint.h>
+#include <pthread.h>
+#include <stdbool.h>
 #include "compress_dict.h"
 #include "binary_tree.h"
 #include "bit_array.h"
@@ -17,6 +19,12 @@ typedef struct {
     session_t *archived_s;
 } configuration_t;
 
+typedef struct {
+    pthread_mutex_t mutex;
+    pthread_cond_t condition_var;
+    bool __shutdown;
+} server_controller_t;
+
 #pragma pack(1)
 typedef struct {
     uint8_t header;
@@ -28,6 +36,7 @@ typedef struct {
 	int socketfd;
     int serversocketfd;
     char *path;
+    server_controller_t *con;
     configuration_t *config;
 	message_t msg;
 } connection_data_t;
