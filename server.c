@@ -13,6 +13,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <linux/limits.h> 
 #include <sys/sysmacros.h>
 #include "queue.h"
 #include "session.h"
@@ -779,7 +780,10 @@ int retrieve_file(connection_data_t *arg) {
 
     start = be64toh(start);
     session_array_delete(s, session, start, len, path);
-    session_array_add(archived_s, session, start, len, path);
+
+    char path_copy[PATH_MAX];
+    memcpy(path_copy, path, strlen(path)+1);
+    session_array_add(archived_s, session, start, len, path_copy);
 
     fclose(fd);
     free(filename);
