@@ -700,7 +700,6 @@ int retrieve_file(connection_data_t *arg) {
     if ((fd = fopen(path, "r")) == NULL) {
         error(d);
 
-
         free(path);
         free(filename);
         free(res);
