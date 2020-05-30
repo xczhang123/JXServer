@@ -465,17 +465,12 @@ int dir_list(void *arg) {
             return 0;
         }
 
-        //If the directory is empty
+        //If the directory is empty, send NULL byte only
         if (is_empty) {
             compression_char(d, &compressed_msg, '\0', &num_of_bytes, &num_of_bit);
-            uint8_t header = 0x30;
-            set_bit(&header, 4);
-            send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
-            return 1;
+            send_compression_msg(d, res, &compressed_msg, 0x30, &num_of_bit, &num_of_bytes);
         } else { //If the directory is not empty
-            uint8_t header = 0x30;
-            set_bit(&header, 4);
-            send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
+            send_compression_msg(d, res, &compressed_msg, 0x30, &num_of_bit, &num_of_bytes);
         }
 
         free(res);
@@ -535,6 +530,7 @@ int dir_list(void *arg) {
     return 1;
 }
 
+/* Retrieve file size: return 1 for success, otherwise 0 */
 int file_size_query(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
@@ -598,6 +594,8 @@ int file_size_query(void *arg) {
         return 0;
     }
 
+    //Reading ends
+
     if (require_compression) {
         uint64_t num_of_bit = 0;
         uint64_t num_of_bytes = 1;
@@ -609,9 +607,7 @@ int file_size_query(void *arg) {
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
         }
         
-        uint8_t header = 0x50;
-        set_bit(&header, 4);
-        send_compression_msg(d, res, &compressed_msg, header, &num_of_bit, &num_of_bytes);
+        send_compression_msg(d, res, &compressed_msg, 0x50, &num_of_bit, &num_of_bytes);
 
         free(filename);
         free(res); 
@@ -632,6 +628,7 @@ int file_size_query(void *arg) {
 
 }
 
+/* Retrieve file content: return 1 for success, otherwise 0 */
 int retrieve_file(connection_data_t *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
@@ -639,9 +636,9 @@ int retrieve_file(connection_data_t *arg) {
     bool compression_bit = get_bit(&d->msg.header, 4) == 0x1; //if payload received is compressed
     bool require_compression = get_bit(&d->msg.header, 5) == 0x1; //if payload sent needs to be compressed
 
-    uint32_t session;
-    uint64_t start;
-    uint64_t len;
+    uint32_t session; //Session ID
+    uint64_t start; //Start offset of the file
+    uint64_t len; //Length of the required file data
     char *filename;
 
     if (compression_bit) {
@@ -680,7 +677,6 @@ int retrieve_file(connection_data_t *arg) {
         filename = malloc(be64toh(d->msg.p_length));
         read(d->socketfd, filename, be64toh(d->msg.p_length)-20);
     }
-
 
     struct stat sb;
     DIR *dir;
@@ -748,7 +744,6 @@ int retrieve_file(connection_data_t *arg) {
     // Session id cannot be reused with the same file with same byte range 
     if (session_array_is_in_archive(d->config->archived_s, session, start, len, path)) {
         error(d);
-        // puts("archive was called!");
 
         fclose(fd);
         free(filename);
@@ -760,7 +755,6 @@ int retrieve_file(connection_data_t *arg) {
     }
 
     if (session_array_is_in_active(d->config->s, session, start, len, path)) {
-        // puts("activeeee was called!");
         res->msg.header = 0x70;
         res->msg.p_length = 0;
         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
@@ -774,10 +768,13 @@ int retrieve_file(connection_data_t *arg) {
         return 1;
     }
 
+    //End of reading
+
     //Add to the session list
     session_array_add(d->config->s, session, start, len, path);
 
     if (require_compression) {
+        //Need compression
         uint64_t num_of_bit = 0;
         uint64_t num_of_bytes = 1;
         uint8_t *compressed_msg = malloc(1);
@@ -815,8 +812,11 @@ int retrieve_file(connection_data_t *arg) {
     }
 
     start = be64toh(start);
-    session_array_delete(d->config->s, session, start, len, path);
 
+    //Delete from the active session array
+    session_array_delete(d->config->s, session, start, len, path);
+    
+    //Add to archive session array which should not be used later
     session_array_add(d->config->archived_s, session, start, len, path);
 
     fclose(fd);
@@ -828,15 +828,16 @@ int retrieve_file(connection_data_t *arg) {
     return 1;
 }
 
+/* Send the shutdown signal to the server and all threads */
 void server_shutdown(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     d->con->__shutdown = true;
     close(d->socketfd);
-    pthread_cond_broadcast(&d->con->condition_var);
+    pthread_cond_broadcast(&d->con->condition_var); //Signal to all waiting threads
     shutdown(d->serversocketfd, SHUT_RDWR);
 }
 
-
+/* Error: always right and does not need to be compressed */
 void error(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
     connection_data_t* res = (connection_data_t*)malloc(sizeof(connection_data_t)); 
