@@ -517,7 +517,7 @@ int file_size_query(void *arg) {
         filename = decompressed_msg;
         free(res->msg.payload);
     } else {
-        uint64_t read_len = bswap_64(d->msg.p_length);
+        uint64_t read_len = be64toh(d->msg.p_length);
         filename = (char*)malloc(read_len);
         read(d->socketfd, filename, read_len);
     }
@@ -563,7 +563,7 @@ int file_size_query(void *arg) {
         uint64_t num_of_bytes = 1;
         uint8_t *compressed_msg = malloc(1);
 
-        file_len = bswap_64(file_len);
+        file_len = htobe64(file_len);
         for (int i = 0; i < 8; i++) {
             uint8_t key = *((uint8_t*)(&file_len) + i);
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
@@ -577,10 +577,10 @@ int file_size_query(void *arg) {
         free(res); 
     } else {
         uint64_t num_len = 8;
-        file_len = bswap_64(file_len);
+        file_len = htobe64(file_len);
         
         res->msg.header = 0x50;
-        res->msg.p_length = bswap_64(num_len);
+        res->msg.p_length = htobe64(num_len);
         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
         write(d->socketfd, &file_len, num_len);
 
