@@ -778,7 +778,6 @@ int retrieve_file(connection_data_t *arg) {
         write(d->socketfd, file_content, len);
     }
 
-
     start = be64toh(start);
     session_array_delete(s, session, start, len, path);
 
