@@ -606,7 +606,7 @@ int retrieve_file(connection_data_t *arg) {
 
     if (compression_bit) {
         //Decode first
-        uint64_t read_len = bswap_64(d->msg.p_length)-1;
+        uint64_t read_len = be64toh(d->msg.p_length)-1;
         char *decompressed_msg = malloc(1);
         uint64_t cur_pos = 0;
 
@@ -620,10 +620,10 @@ int retrieve_file(connection_data_t *arg) {
         memcpy(&session, decompressed_msg, 4);
 
         memcpy(&start, decompressed_msg+4, 8);
-        start = bswap_64(start);
+        start = be64toh(start);
 
         memcpy(&len, decompressed_msg+12, 8);
-        len = bswap_64(len);
+        len = be64toh(len);
 
         filename = strdup(decompressed_msg+20);
 
@@ -633,13 +633,13 @@ int retrieve_file(connection_data_t *arg) {
         read(d->socketfd, &session, sizeof(uint32_t));
 
         read(d->socketfd, &start, sizeof(uint64_t));
-        start = bswap_64(start);
+        start = be64toh(start);
 
         read(d->socketfd, &len, sizeof(uint64_t));
-        len = bswap_64(len);
+        len = be64toh(len);
 
-        filename = malloc(bswap_64(d->msg.p_length));
-        read(d->socketfd, filename, bswap_64(d->msg.p_length)-20);
+        filename = malloc(be64toh(d->msg.p_length));
+        read(d->socketfd, filename, be64toh(d->msg.p_length)-20);
     }
 
     struct stat sb;
