@@ -30,7 +30,9 @@ void session_array_delete(session_t *s, uint32_t id, uint64_t start, uint64_t le
 
 session_segment_t* session_array_get(session_t *s, int index);
 
-bool session_array_is_in(session_t *s, uint32_t id, uint64_t start, uint64_t len, char *filename);
+bool session_array_is_in_active(session_t *s, uint32_t id, uint64_t start, uint64_t len, char *filename);
+
+bool session_array_is_in_archive(session_t *archive, uint32_t id, uint64_t start, uint64_t len, char *filename);
 
 void session_array_free(session_t *s);
 

@@ -63,7 +63,10 @@ session_segment_t* session_array_get(session_t *s, int index) {
     return (&s->sessions[index]);
 }
 
-bool session_array_is_in(session_t *s, uint32_t id, uint64_t start, uint64_t len, char *filename) {
+bool session_array_is_in_active(session_t *s, uint32_t id, uint64_t start, uint64_t len, char *filename) {
+
+    pthread_mutex_lock(&s->lock);
+
     bool found = false;
 
     for (int i = 0; i < s->size; i++) {
@@ -74,9 +77,33 @@ bool session_array_is_in(session_t *s, uint32_t id, uint64_t start, uint64_t len
                 break;
         }
     }
+    pthread_mutex_unlock(&s->lock);
+
 
     return found;
 }
+
+bool session_array_is_in_archive(session_t *archive, uint32_t id, uint64_t start, uint64_t len, char *filename) {
+
+    pthread_mutex_lock(&archive->lock);
+
+    bool found = false;
+
+    for (int i = 0; i < archive->size; i++) {
+        session_segment_t *seg = session_array_get(archive, i);
+        if (seg->id == id && seg->start == start && 
+            seg->len == len && strcmp(seg->filename, filename) == 0) {
+                found = true;
+                break;
+        }
+    }
+
+    pthread_mutex_unlock(&archive->lock);
+
+
+    return found;
+}
+
 
 
 void session_array_free(session_t *s) {
