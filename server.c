@@ -752,7 +752,6 @@ int retrieve_file(connection_data_t *arg) {
     }
 
     start = bswap_64(start);
-    len = bswap_64(len);
     session_array_delete(s, session, start, len, filename);
 
     fclose(fd);
