@@ -714,6 +714,7 @@ int retrieve_file(connection_data_t *arg) {
     if (session_array_is_in_archive(archived_s, session, start, len, path)) {
         error(d);
         puts("archive was called!");
+        
 
         fclose(fd);
         free(filename);
