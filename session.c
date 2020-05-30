@@ -75,6 +75,7 @@ bool session_array_is_in(session_t *s, uint32_t id, uint64_t start, uint64_t len
                 break;
         }
     }
+    
     pthread_mutex_unlock(&s->lock);
 
     return found;
