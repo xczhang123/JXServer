@@ -78,6 +78,7 @@ bool session_array_is_in_active(session_t *s, uint32_t id, uint64_t start, uint6
         session_segment_t *seg = session_array_get(s, i);
         if (seg->id == id && seg->start == start && 
             seg->len == len && strcmp(seg->filename, filename) == 0) {
+                puts("IN activeeee!!");
                 found = true;
                 break;
         }
@@ -99,6 +100,7 @@ bool session_array_is_in_archive(session_t *archive, uint32_t id, uint64_t start
         session_segment_t *seg = session_array_get(archive, i);
         if (seg->id == id && seg->start == start && 
             seg->len == len && strcmp(seg->filename, filename) == 0) {
+                puts("IN archive!!");
                 found = true;
                 break;
         }
