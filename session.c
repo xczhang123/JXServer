@@ -48,7 +48,7 @@ void session_array_delete(session_t *s, uint32_t id, uint64_t start, uint64_t le
         if (seg->id == id && seg->start == start && 
             seg->len == len && strcmp(seg->filename, filename) == 0) {
                 s->sessions[i] = s->sessions[--s->size];
-                puts("DELETED");
+                // puts("DELETED");
                 break;
         }
     }
