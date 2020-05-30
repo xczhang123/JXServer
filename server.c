@@ -698,8 +698,8 @@ int retrieve_file(connection_data_t *arg) {
     //Read target file
     FILE *fd;
     if ((fd = fopen(path, "r")) == NULL) {
-        // puts("fopen failed");
         error(d);
+
         free(path);
         free(filename);
         free(res);
