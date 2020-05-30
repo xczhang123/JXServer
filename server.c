@@ -707,6 +707,7 @@ int retrieve_file(connection_data_t *arg) {
     uint8_t *file_content = malloc(len);
     fread(file_content, 1, len, fd);
 
+    pthread_mutex_lock(&s->lock);
     if (session_array_is_in(s, session, start, len, path)) {
         res->msg.header = 0x70;
         res->msg.p_length = 0;
@@ -718,8 +719,10 @@ int retrieve_file(connection_data_t *arg) {
         free(path);
         free(res);
 
+        pthread_mutex_unlock(&s->lock);
         return 1;
     } 
+    pthread_mutex_unlock(&s->lock);
 
     //Add to the session list
     session_array_add(s, session, start, len, path);
