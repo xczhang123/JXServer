@@ -651,7 +651,6 @@ int retrieve_file(connection_data_t *arg) {
     DIR *dir;
     struct dirent *file;
 
-
     bool found = false;
     uint64_t file_len = 0;
     if ((dir=opendir(d->path)) != NULL) {
