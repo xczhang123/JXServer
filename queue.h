@@ -5,6 +5,7 @@
 #include "compress_dict.h"
 #include "binary_tree.h"
 #include "bit_array.h"
+#include "session.h"
 #define PAYLOAD_CHUNK (1024)
 
 typedef struct {
@@ -12,6 +13,8 @@ typedef struct {
     char *path;
     compress_dict_t *cd;
     binary_tree_node *root;
+    session_t *s;
+    session_t *archived_s;
 } configuration_t;
 
 #pragma pack(1)

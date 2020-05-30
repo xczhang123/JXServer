@@ -21,12 +21,9 @@
 #define THREAD_POOL_SIZE (8)
 #define LISTENING_SIZE (100)
 
-pthread_t thread_pool[THREAD_POOL_SIZE];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER;
 bool __shutdown = false;
-session_t *s; //Store active session information
-session_t *archived_s; //Store previous sessions 
 
 void config_reader(configuration_t *config, char* config_file_name);
 void compression_reader(configuration_t *config);
@@ -55,9 +52,11 @@ int main(int argc, char** argv) {
     configuration_t *config = malloc(sizeof(configuration_t));
     config_reader(config, argv[1]);
     compression_reader(config);
-    s = session_array_init(); //Initialize session array for later use
-    archived_s = session_array_init();
+    
+    session_t *s = session_array_init(); //Store active session information
+    session_t *archived_s = session_array_init(); //Store previous sessions 
 
+    pthread_t thread_pool[THREAD_POOL_SIZE];
     for (int i = 0; i < THREAD_POOL_SIZE; i++) {
         pthread_create(thread_pool+i, NULL, thread_handler, NULL);
     }
@@ -88,6 +87,8 @@ int main(int argc, char** argv) {
             d->serversocketfd = serversocket_fd;
             d->path = config->path;
             d->config = config;
+            d->config->s = s;
+            d->config->archived_s = archived_s;
 
             pthread_mutex_lock(&mutex);
             enqueue(d);
@@ -711,7 +712,7 @@ int retrieve_file(connection_data_t *arg) {
     fread(file_content, 1, len, fd);
 
     // Session id cannot be reused with the same file with same byte range 
-    if (session_array_is_in_archive(archived_s, session, start, len, path)) {
+    if (session_array_is_in_archive(d->config->archived_s, session, start, len, path)) {
         error(d);
         // puts("archive was called!");
 
@@ -724,7 +725,7 @@ int retrieve_file(connection_data_t *arg) {
         return 0;
     }
 
-    if (session_array_is_in_active(s, session, start, len, path)) {
+    if (session_array_is_in_active(d->config->s, session, start, len, path)) {
         // puts("activeeee was called!");
         res->msg.header = 0x70;
         res->msg.p_length = 0;
@@ -736,12 +737,11 @@ int retrieve_file(connection_data_t *arg) {
         free(path);
         free(res);
 
-
         return 1;
     }
 
     //Add to the session list
-    session_array_add(s, session, start, len, path);
+    session_array_add(d->config->s, session, start, len, path);
 
     if (require_compression) {
         uint64_t num_of_bit = 0;
@@ -781,9 +781,9 @@ int retrieve_file(connection_data_t *arg) {
     }
 
     start = be64toh(start);
-    session_array_delete(s, session, start, len, path);
+    session_array_delete(d->config->s, session, start, len, path);
 
-    session_array_add(archived_s, session, start, len, path);
+    session_array_add(d->config->archived_s, session, start, len, path);
 
     fclose(fd);
     free(filename);
