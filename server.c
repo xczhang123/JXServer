@@ -20,10 +20,10 @@
 #define THREAD_POOL_SIZE (8)
 #define LISTENING_SIZE (100)
 
-void config_reader(configuration_t *config, char* config_file_name);
+void config_reader(configuration_t *config, char *config_file_name);
 void compression_reader(configuration_t *config);
-void* connection_handler(void* arg);
-void* thread_handler();
+void* connection_handler(void *arg);
+void* thread_handler(void *arg);
 int message_header_reader(void* arg);
 int echo(void *arg);
 int dir_list(void *arg);
@@ -31,13 +31,12 @@ int file_size_query(void *arg);
 int retrieve_file(connection_data_t *arg);
 void error(void *arg);
 void server_shutdown(void *arg);
-void compression_char(connection_data_t *d, uint8_t** compressed_msg, 
+void compression_char(connection_data_t *d, uint8_t **compressed_msg, 
                         uint8_t key, uint64_t *num_of_bytes, uint64_t *num_of_bit);
 void send_compression_msg(connection_data_t *d, connection_data_t *res, uint8_t **compressed_msg, 
                             uint8_t header, uint64_t *num_of_bit, uint64_t *num_of_bytes);
 void decompression_msg(connection_data_t *d, uint8_t* original_msg, char **decompression_msg, 
                         uint64_t read_len, uint8_t padding);
-
 
 int main(int argc, char** argv) {
 	
@@ -551,6 +550,7 @@ int file_size_query(void *arg) {
 
         decompression_msg(d, res->msg.payload, &decompressed_msg, read_len, padding);
         filename = decompressed_msg;
+        
         free(res->msg.payload);
     } else {
         uint64_t read_len = be64toh(d->msg.p_length);
