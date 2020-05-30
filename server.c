@@ -722,7 +722,6 @@ int retrieve_file(connection_data_t *arg) {
         pthread_mutex_unlock(&s->lock);
         return 1;
     } 
-    
     pthread_mutex_unlock(&s->lock);
 
     //Add to the session list
