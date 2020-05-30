@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-O0 -Wall -Werror -Werror=vla -std=gnu11 -lm -lpthread -lrt
 CFLAG_SAN=$(CFLAGS) -fsanitize=address -g
 DEPS=
-OBJ=queue.o binary_tree.o compress_dict.o bit_array.o
+OBJ=queue.o binary_tree.o compress_dict.o bit_array.o session.o
 TARGET=server
 
 all: $(TARGET)

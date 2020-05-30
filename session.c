@@ -1,78 +1,82 @@
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include "session.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include "session.h"
 
-// #define DYN_ARRAY_DEF_CAPACITY (2)
+#define DYN_ARRAY_DEF_CAPACITY (2)
 
-// static void session_array_resize(struct dyn_array *d) {
-//     d->capacity *= 2;
-//     d->data = realloc(d->data, sizeof(*(d->data)) * d->capacity);
-// }
+void session_array_resize(session_t *s) {
+    s->capacity *= 2;
+    s->sessions = realloc(s->sessions, sizeof(*(s->sessions)) * s->capacity);
+}
 
-// struct dyn_array* dyn_array_init() {
-//     struct dyn_array *d = malloc(sizeof(struct dyn_array));
-//     d->capacity = DYN_ARRAY_DEF_CAPACITY;
-//     d->size = 0;
-//     d->data = malloc(sizeof(*(d->data)) * d->capacity);
+session_t * session_array_init() {
+    session_t *s = malloc(sizeof(session_t));
+    s->capacity = DYN_ARRAY_DEF_CAPACITY;
+    s->size = 0;
+    s->sessions = malloc(sizeof(*(s->sessions)) * s->capacity);
+    pthread_mutex_init(&s->lock, NULL);
 
-//     return d;
-// }
+    return s;
+}
 
-// void dyn_array_add(struct dyn_array *dyn, int value) {
+void session_array_add(session_t *s, uint32_t id, uint64_t start, uint64_t len, char *filename) {
+    pthread_mutex_lock(&s->lock);
+    if (s->capacity == s->size) {
+        session_array_resize(s);
+    }
 
-//     if (dyn->capacity == dyn->size) {
-//         dyn_array_resize(dyn);
-//     }
+    session_segment_t seg = {
+        .id = id,
+        .start = start,
+        .len = len,
+        .filename = filename
+    }; 
 
-//     dyn->data[dyn->size++] = value;
-// }
+    s->sessions[s->size++] = seg;
 
-// void dyn_array_delete(struct dyn_array *dyn, int index) {
+    pthread_mutex_unlock(&s->lock);
+}
 
-//     if (index < 0 || index >= dyn->size) {
-//         return;
-//     }
+void session_array_delete(session_t *s, uint32_t id, uint64_t start, uint64_t len, char *filename) {
 
-//     for (int i = index; i < dyn->size-1; i++) {
-//         dyn->data[i] = dyn->data[i+1];
-//     }
+    pthread_mutex_lock(&s->lock);
 
-//     dyn->size--;
+    for (int i = 0; i < s->size; i++) {
+        session_segment_t *seg = session_array_get(s, i);
+        if (seg->id == id && seg->start == start && 
+            seg->len == len && strcmp(seg->filename, filename) == 0) {
+                s->sessions[i] = s->sessions[s->size--];
+                break;
+        }
+    }
+    
+    pthread_mutex_unlock(&s->lock);
+}
 
-// }
+session_segment_t* session_array_get(session_t *s, int index) {
+    if (index < 0 || index >= s->size) {
+        return NULL;
+    }
 
-// int dyn_array_get(struct dyn_array *dyn, int index) {
-//     if (index < 0 || index >= dyn->size) {
-//         fprintf(stderr, "Array index out of bounds! We return -1");
-//         return -1;
-//     }
+    return (&s->sessions[index]);
+}
 
-//     return dyn->data[index];
-// }
+bool session_array_is_in(session_t *s, uint32_t id, uint64_t start, uint64_t len, char *filename) {
+    for (int i = 0; i < s->size; i++) {
+        session_segment_t *seg = session_array_get(s, i);
+        if (seg->id == id && seg->start == start && 
+            seg->len == len && strcmp(seg->filename, filename) == 0) {
+                return true;
+        }
+    }
 
-// void dyn_array_free(struct dyn_array * dyn) {
-//     free(dyn->data);
-//     free(dyn);
-// }
-
-// int main() {
-//     struct dyn_array *dyn = dyn_array_init();
-//     dyn_array_add(dyn, 1);
-//     dyn_array_add(dyn, 3);
-//     dyn_array_add(dyn, 5);
-
-//     for(int i = 0; i < dyn->size; i++) {
-//         printf("%d ", dyn->data[i]);
-//     }
-//     puts("");
-
-//     dyn_array_delete(dyn, 2);
-//     for(int i = 0; i < dyn->size; i++) {
-//         printf("%d ", dyn->data[i]);
-//     }
-//     puts("");
+    return false;
+}
 
 
-//     dyn_array_free(dyn);
-
-// }
+void session_array_free(session_t *s) {
+    free(s->sessions);
+    free(s);
+}

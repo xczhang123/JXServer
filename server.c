@@ -15,7 +15,7 @@
 #include <time.h>
 #include <sys/sysmacros.h>
 #include "queue.h"
-// #include "session.h"
+#include "session.h"
 
 #define THREAD_POOL_SIZE (20)
 #define LISTENING_SIZE (100)
@@ -24,6 +24,7 @@ pthread_t thread_pool[THREAD_POOL_SIZE];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER;
 bool __shutdown = false;
+session_t *s;
 
 void config_reader(configuration_t *config, char* config_file_name);
 void compression_reader(configuration_t *config);
@@ -52,6 +53,7 @@ int main(int argc, char** argv) {
     configuration_t *config = malloc(sizeof(configuration_t));
     config_reader(config, argv[1]);
     compression_reader(config);
+    s = session_array_init(); //Initialize session array for later use
 
     for (int i = 0; i < THREAD_POOL_SIZE; i++) {
         pthread_create(thread_pool+i, NULL, thread_handler, NULL);
@@ -662,7 +664,6 @@ int retrieve_file(connection_data_t *arg) {
         }
         closedir(dir);
     } else {
-        // puts("dir not found failed");
         error(d);
         free(filename);
         free(res); 
@@ -671,7 +672,6 @@ int retrieve_file(connection_data_t *arg) {
 
     //If the file is not found
     if (!found) {
-        // puts("file not found failed");
         error(d);
         free(filename);
         free(res); 
@@ -679,7 +679,6 @@ int retrieve_file(connection_data_t *arg) {
     }
 
     if (start + len > file_len) {
-        // puts("file_len failed");
         error(d);
         free(filename);
         free(res);
@@ -703,9 +702,17 @@ int retrieve_file(connection_data_t *arg) {
     }
 
     fseek(fd, start, SEEK_SET);
-
     uint8_t *file_content = malloc(len);
     fread(file_content, 1, len, fd);
+
+    //Add to the session list
+    session_array_add(s, session, start, len, filename);
+
+    if (session_array_is_in(s, session, start, len, filename)) {
+        res->msg.header = 0x70;
+        res->msg.payload = 0;
+        write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
+    }
 
     if (require_compression) {
         uint64_t num_of_bit = 0;
@@ -743,6 +750,10 @@ int retrieve_file(connection_data_t *arg) {
         write(d->socketfd, &len_temp, 8);
         write(d->socketfd, file_content, len);
     }
+
+    start = bswap_64(start);
+    len = bswap_64(len);
+    session_array_delete(s, session, start, len, filename);
 
     fclose(fd);
     free(filename);
