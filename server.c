@@ -715,7 +715,6 @@ int retrieve_file(connection_data_t *arg) {
         error(d);
         puts("archive was called!");
 
-
         fclose(fd);
         free(filename);
         free(file_content);
