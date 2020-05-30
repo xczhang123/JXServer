@@ -781,7 +781,6 @@ int retrieve_file(connection_data_t *arg) {
     session_array_delete(s, session, start, len, path);
 
     char path_copy[PATH_MAX] = {0};
-    memcpy(path_copy, path, strlen(path)+1);
     session_array_add(archived_s, session, start, len, path_copy);
 
     fclose(fd);
