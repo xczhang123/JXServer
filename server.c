@@ -714,7 +714,7 @@ int retrieve_file(connection_data_t *arg) {
     if (session_array_is_in_archive(archived_s, session, start, len, path)) {
         error(d);
         puts("archive was called!");
-        
+
 
         fclose(fd);
         free(filename);
@@ -783,8 +783,8 @@ int retrieve_file(connection_data_t *arg) {
     start = be64toh(start);
     session_array_delete(s, session, start, len, path);
 
-    char path_copy[PATH_MAX] = {0};
-    session_array_add(archived_s, session, start, len, path_copy);
+    // char path_copy[PATH_MAX] = {0};
+    session_array_add(archived_s, session, start, len, path);
 
     fclose(fd);
     free(filename);

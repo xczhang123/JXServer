@@ -31,8 +31,10 @@ void session_array_add(session_t *s, uint32_t id, uint64_t start, uint64_t len, 
         .id = id,
         .start = start,
         .len = len,
-        .filename = filename
     }; 
+    memcpy(seg.filename, filename, strlen(filename)+1);
+
+    puts(seg.filename);
 
     s->sessions[s->size++] = seg;
 
@@ -77,7 +79,7 @@ bool session_array_is_in_active(session_t *s, uint32_t id, uint64_t start, uint6
                 break;
         }
     }
-    
+
     pthread_mutex_unlock(&s->lock);
 
 

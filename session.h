@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <pthread.h>
+#include <linux/limits.h> 
 
 #define DYN_ARRAY_DEF_CAPACITY (2)
 
@@ -10,7 +11,7 @@ typedef struct session_segment {
     uint32_t id;
     uint64_t start;
     uint64_t len;
-    char *filename;
+    char filename[PATH_MAX];
 } session_segment_t;
 
 typedef struct session{
