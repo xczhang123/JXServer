@@ -718,9 +718,6 @@ int retrieve_file(connection_data_t *arg) {
         free(file_content);
         free(path);
         free(res);
-
-
-        pthread_mutex_unlock(&s->lock);
         
         return 0;
     }
