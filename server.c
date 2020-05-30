@@ -96,6 +96,7 @@ int main(int argc, char** argv) {
     free(config->path);
     compress_dict_free(config->cd);
     binary_tree_destroy(config->root);
+    session_array_free(s);
     free(config);
     exit(0);
 }
