@@ -300,7 +300,7 @@ void send_compression_msg(connection_data_t *d, connection_data_t *res, uint8_t 
     *num_of_bytes += 1;
     res->msg.header = header;
     set_bit(&res->msg.header, 4);
-    res->msg.p_length = bswap_64(*num_of_bytes);
+    res->msg.p_length = htobe64(*num_of_bytes);
     write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
     uint8_t padding = (8-(*num_of_bit)%8) % 8;
@@ -349,7 +349,7 @@ int echo(void *arg) {
 
     if (require_compression && !compression_bit) {
         //need compression
-        uint64_t length = bswap_64(d->msg.p_length);
+        uint64_t length = be64toh(d->msg.p_length);
         res->msg.payload = malloc(length);
         read(d->socketfd, res->msg.payload, length);
         uint64_t num_of_bit = 0;
@@ -367,7 +367,7 @@ int echo(void *arg) {
             set_bit(&res->msg.header, 4);
         }
         res->msg.p_length = d->msg.p_length;
-        uint64_t length = bswap_64(res->msg.p_length);
+        uint64_t length = htobe64(res->msg.p_length);
 
         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
         
@@ -464,7 +464,7 @@ int dir_list(void *arg) {
         if (is_empty) {
             length = 1;
             res->msg.header = 0x30;
-            res->msg.p_length = bswap_64(length);
+            res->msg.p_length = htobe64(length);
             write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
             write(d->socketfd, "\0", 1);
 
@@ -473,7 +473,7 @@ int dir_list(void *arg) {
         }
 
         res->msg.header = 0x30;
-        res->msg.p_length = bswap_64(length);
+        res->msg.p_length = htobe64(length);
         write(d->socketfd, &res->msg,  sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
         if ((dir=opendir(d->path)) != NULL) {
@@ -504,7 +504,7 @@ int file_size_query(void *arg) {
     char *filename;
     if (compression_bit) {
         //Decode first
-        uint64_t read_len = bswap_64(d->msg.p_length)-1;
+        uint64_t read_len = be64toh(d->msg.p_length)-1;
         char *decompressed_msg = malloc(1);
         uint64_t cur_pos = 0;
 
