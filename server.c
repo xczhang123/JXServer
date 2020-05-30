@@ -731,12 +731,12 @@ int retrieve_file(connection_data_t *arg) {
             uint8_t key = *((uint8_t*)&session+i);   
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
         }
-        start = bswap_64(start);
+        start = htobe64(start);
         for (int i = 0; i < 8; i++) {
             uint8_t key = *((uint8_t*)&start+i);   
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
         }
-        uint64_t len_temp = bswap_64(len);
+        uint64_t len_temp = htobe64(len);
         for (int i = 0; i < 8; i++) {
             uint8_t key = *((uint8_t*)&len_temp+i);  
             compression_char(d, &compressed_msg, key, &num_of_bytes, &num_of_bit);
@@ -748,18 +748,18 @@ int retrieve_file(connection_data_t *arg) {
         send_compression_msg(d, res, &compressed_msg, 0x70, &num_of_bit, &num_of_bytes);
     } else {
         res->msg.header = 0x70;
-        res->msg.p_length = bswap_64(len+20);
+        res->msg.p_length = htobe64(len+20);
         write(d->socketfd, &res->msg, sizeof(res->msg.header)+sizeof(res->msg.p_length));
 
         write(d->socketfd, &session, 4);
-        start = bswap_64(start);
+        start = htobe64(start);
         write(d->socketfd, &start, 8);
-        long len_temp = bswap_64(len);
+        long len_temp = htobe64(len);
         write(d->socketfd, &len_temp, 8);
         write(d->socketfd, file_content, len);
     }
 
-    start = bswap_64(start);
+    start = be64toh(start);
     session_array_delete(s, session, start, len, path);
 
     fclose(fd);
