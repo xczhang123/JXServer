@@ -18,7 +18,7 @@
 #include "queue.h"
 
 #define THREAD_POOL_SIZE (8)
-#define LISTENING_SIZE (100)
+#define LISTENING_SIZE (300)
 
 void config_reader(configuration_t *config, char *config_file_name);
 void compression_reader(configuration_t *config);
