@@ -54,16 +54,16 @@ int main(int argc, char** argv) {
     session_t *archived_s = session_array_init(); //Store previous sessions 
 
     // Threads mutex and conditional variable, and shutdown signal
-    server_controller_t *con = malloc(sizeof(server_controller_t));
-    pthread_mutex_init(&con->mutex, NULL);
-    pthread_cond_init(&con->condition_var, NULL);
-    con->__shutdown = false;
+    // server_controller_t *con = malloc(sizeof(server_controller_t));
+    // pthread_mutex_init(&con->mutex, NULL);
+    // pthread_cond_init(&con->condition_var, NULL);
+    // con->__shutdown = false;
 
     // We limit the number of threads to be THREAD_POOL_SIZE
-    pthread_t thread_pool[THREAD_POOL_SIZE];
-    for (int i = 0; i < THREAD_POOL_SIZE; i++) {
-        pthread_create(thread_pool+i, NULL, thread_handler, con);
-    }
+    // pthread_t thread_pool[THREAD_POOL_SIZE];
+    // for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+    //     pthread_create(thread_pool+i, NULL, thread_handler, con);
+    // }
 
 	int option = 1; 
 	serversocket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 
 	listen(serversocket_fd, LISTENING_SIZE);
 	
-    while(!con->__shutdown) {
+    while(true) {
 		uint32_t addrlen = sizeof(struct sockaddr_in);
 		clientsocket_fd = accept(serversocket_fd, (struct sockaddr*) &config->address, &addrlen);
 		
@@ -90,16 +90,20 @@ int main(int argc, char** argv) {
             d->socketfd = clientsocket_fd;
             d->serversocketfd = serversocket_fd;
             d->path = config->path;
-            d->con = con;
+            // d->con = con;
             d->config = config;
             d->config->s = s;
             d->config->archived_s = archived_s;
 
             // Enqueue the job to the pool and signify the waiting thread
-            pthread_mutex_lock(&con->mutex);
-            enqueue(d);
-            pthread_cond_signal(&con->condition_var);
-            pthread_mutex_unlock(&con->mutex);
+            // pthread_mutex_lock(&con->mutex);
+            // enqueue(d);
+            // pthread_cond_signal(&con->condition_var);
+            // pthread_mutex_unlock(&con->mutex);
+            pthread_t t;
+            pthread_create(&t, NULL, &connection_handler, d);
+        } else {
+            break;
         }
 	}
 
@@ -108,7 +112,7 @@ int main(int argc, char** argv) {
     binary_tree_destroy(config->root);
     session_array_free(s);
     session_array_free(archived_s);
-    free(con);
+    // free(con);
     free(config);
     exit(0);
 }
@@ -196,26 +200,26 @@ void compression_reader(configuration_t *config) {
 }
 
 /* Thread pool controller to delegate work to the waiting threads */
-void* thread_handler(void* arg) {
-    server_controller_t *con = (server_controller_t*)arg;
-    while (true) {
-        connection_data_t* d;
-        pthread_mutex_lock(&con->mutex);
-        while ((d = dequeue()) == NULL) {
-            pthread_cond_wait(&con->condition_var, &con->mutex); 
-            if (con->__shutdown) { //If the server should be shut down, thread exits
-                pthread_mutex_unlock(&con->mutex);
-                pthread_exit(NULL);
-            }
-        }; 
-        pthread_mutex_unlock(&con->mutex);
+// void* thread_handler(void* arg) {
+//     server_controller_t *con = (server_controller_t*)arg;
+//     while (true) {
+//         connection_data_t* d;
+//         pthread_mutex_lock(&con->mutex);
+//         while ((d = dequeue()) == NULL) {
+//             pthread_cond_wait(&con->condition_var, &con->mutex); 
+//             if (con->__shutdown) { //If the server should be shut down, thread exits
+//                 pthread_mutex_unlock(&con->mutex);
+//                 pthread_exit(NULL);
+//             }
+//         }; 
+//         pthread_mutex_unlock(&con->mutex);
         
-        //We have some work to do
-        if (d != NULL) {
-            connection_handler(d);
-        }
-    }
-}
+//         //We have some work to do
+//         if (d != NULL) {
+//             connection_handler(d);
+//         }
+//     }
+// }
 /* Thread work handler: reading data from the assigned client and react properly */
 void* connection_handler(void* arg) {
 	connection_data_t* d = (connection_data_t*) arg;
@@ -834,9 +838,9 @@ int retrieve_file(connection_data_t *arg) {
 /* Send the shutdown signal to the server and all threads */
 void server_shutdown(void *arg) {
     connection_data_t* d = (connection_data_t*) arg;
-    d->con->__shutdown = true;
+    // d->con->__shutdown = true;
     close(d->socketfd);
-    pthread_cond_broadcast(&d->con->condition_var); //Signal to all waiting threads
+    // pthread_cond_broadcast(&d->con->condition_var); //Signal to all waiting threads
     shutdown(d->serversocketfd, SHUT_RDWR);
 }
 
