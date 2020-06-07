@@ -274,8 +274,8 @@ void* connection_handler(void* arg) {
    return 1 for success, otherwise 0 */
 int message_header_reader(void* arg) {
     connection_data_t* d = (connection_data_t*) arg;
-    int flags = fcntl(d->socketfd, F_GETFL, 0); 
-    fcntl(d->socketfd, F_SETFL, flags | O_NONBLOCK);
+    // int flags = fcntl(d->socketfd, F_GETFL, 0); 
+    // fcntl(d->socketfd, F_SETFL, flags | O_NONBLOCK);
     ssize_t nread = read(d->socketfd, &d->msg, sizeof(d->msg.header)+sizeof(d->msg.p_length));
 
     if (nread <= 0) {
