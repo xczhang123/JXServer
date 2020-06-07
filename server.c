@@ -447,7 +447,7 @@ int dir_list(void *arg) {
         if ((dir=opendir(d->path)) != NULL) {
             while ((file = readdir(dir)) != NULL) {
                 stat(file->d_name, &sb);
-                if (file->d_type == DT_REG && false) {
+                if (file->d_type == DT_REG) {
 
                     for (int i = 0; i < strlen(file->d_name); i++) {
                         uint8_t key = file->d_name[i];
