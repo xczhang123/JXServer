@@ -54,10 +54,10 @@ int main(int argc, char** argv) {
     session_t *archived_s = session_array_init(); //Store previous sessions 
 
     // Threads mutex and conditional variable, and shutdown signal
-    // server_controller_t *con = malloc(sizeof(server_controller_t));
-    // pthread_mutex_init(&con->mutex, NULL);
-    // pthread_cond_init(&con->condition_var, NULL);
-    // con->__shutdown = false;
+    server_controller_t *con = malloc(sizeof(server_controller_t));
+    pthread_mutex_init(&con->mutex, NULL);
+    pthread_cond_init(&con->condition_var, NULL);
+    con->__shutdown = false;
 
     // We limit the number of threads to be THREAD_POOL_SIZE
     // pthread_t thread_pool[THREAD_POOL_SIZE];
@@ -268,7 +268,6 @@ void* connection_handler(void* arg) {
         }
 
     }
-    close(d->socketfd);
     free(d);
 
 	return NULL;
@@ -648,6 +647,7 @@ int retrieve_file(connection_data_t *arg) {
     uint64_t len; //Length of the required file data
     char *filename;
 
+
     if (compression_bit) {
         //Decode first
         uint64_t read_len = be64toh(d->msg.p_length)-1;
@@ -747,6 +747,7 @@ int retrieve_file(connection_data_t *arg) {
     fseek(fd, start, SEEK_SET);
     uint8_t *file_content = malloc(len);
     fread(file_content, 1, len, fd);
+
 
     // Session id cannot be reused with the same file with same byte range 
     if (session_array_is_in_archive(d->config->archived_s, session, start, len, path)) {
